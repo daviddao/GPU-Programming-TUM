@@ -24,14 +24,6 @@ using namespace std;
 // uncomment to use the camera
 //#define CAMERA
 
-__device__
-void calculate2DEigen(float x11, float x12, float x21, float x22) {
-    
-    // Calculate the trace
-
-    // Calculate the determinant
-}
-
 __global__ 
 void convolutionkernel(float *d_imgIn, float *d_imgOut, float *d_kernel, int w, int h, int nc, int radius)
 {
@@ -66,6 +58,32 @@ void convolutionkernel(float *d_imgIn, float *d_imgOut, float *d_kernel, int w, 
 
     }
 }
+
+// rotational symmetric derivative discretization for x and y partial derivative
+__global__ void gradient_kernel(float *imgIn_gradX, float *imgIn_gradY, float *imgIn, int w, int h, int nc)
+{
+	int ind_x = threadIdx.x + blockDim.x * blockIdx.x;
+	int ind_y = threadIdx.y + blockDim.y * blockIdx.y;
+	int ind = ind_x + w*ind_y;
+	
+	int ind_x_left, ind_x_right, ind_y_up, ind_y_down;
+	
+	//clamping
+	ind_x_left = (ind_x-1 < 0) ? 0 : ind_x-1;
+	ind_x_right = (ind_x+1 > w-1) ? w-1 : ind_x+1;
+	ind_y_down = ((ind_y+1)%h == 0) ? ind_y : ind_y+1;
+	ind_y_up = (ind_y%h == 0) ? ind_y : ind_y-1;
+	
+	//x gradient
+	imgIn_gradX[ind] = (3*imgIn[ind_x_right + w*ind_y_down] + 10*imgIn[ind_x_right+w*ind_y] + 3*imgIn[ind_x_right+w*ind_y_up] - 
+			3*imgIn[ind_x_left+w*ind_y_down] - 10*imgIn[ind_x_left+w*ind_y] - 3*imgIn[ind_x_left+w*ind_y_up])/32.f;
+
+	//y gradient
+	imgIn_gradY[ind] = (3*imgIn[ind_x_right + w*ind_y_down] + 10*imgIn[ind_x+w*ind_y_down] + 3*imgIn[ind_x_left+w*ind_y_down] - 
+			3*imgIn[ind_x_right+w*ind_y_up] - 10*imgIn[ind_x+w*ind_y_up] - 3*imgIn[ind_x_left+w*ind_y_up])/32.f;
+
+}
+
 
 // rotational symmetric derivative discretization for x and y partial derivative
 __global__ 
@@ -444,10 +462,11 @@ int main(int argc, char **argv) {
 
     convolutionkernel <<<grid,block>>> (d_imgIn, d_imgOut, d_kernel, w, h, nc, radius);
 
+    grid = dim3((w + block.x - 1) / block.x, (h*nc + block.y - 1) / block.y, 1);
     // calculate the partial derivatives of the blurred image
-    rotationaldevkernel_x <<<grid,block>>> (d_imgOut, d_xOut , w, h, nc);
-    rotationaldevkernel_y <<<grid,block>>> (d_imgOut, d_yOut, w, h, nc);
-
+    gradient_kernel <<<grid,block>>> (d_xOut, d_yOut, d_imgOut, w, h, nc);
+    
+	grid = dim3((w + block.x - 1) / block.x, (h + block.y - 1) / block.y, (nc));
     // now calculate M
     calculate_M <<<grid,block>>> (d_xOut, d_yOut, d_m1, d_m2, d_m3, w, h, nc);
 
