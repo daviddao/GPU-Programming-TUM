@@ -20,11 +20,29 @@
 using namespace std;
 
 // uncomment to use the camera
-//#define CAMERA
+#define CAMERA
 
 
-__host__ __device__ float diffusity(float gradientX, float gradientY, float gHat){
-	return (gHat * sqrtf(gradientX*gradientX+gradientY*gradientY));
+__host__ __device__ float diffusity(float gradientX, float gradientY){
+	float gHat = 1;
+//	float gradientnorm = sqrtf(gradientX*gradientX+gradientY*gradientY);
+	return gHat;
+	//	return (gHat * gradientnorm);
+}
+
+__host__ __device__ float diffusity2(float gradientX, float gradientY, float eps){
+	float gHat = 1;
+	float gradientnorm = sqrtf(gradientX*gradientX+gradientY*gradientY);
+	gHat = gHat / max(eps, gradientnorm);
+	return gHat;
+//	return (gHat * gradientnorm);
+}
+
+__host__ __device__ float diffusity3(float gradientX, float gradientY, float eps){
+	float gradientnorm = sqrtf(gradientX*gradientX+gradientY*gradientY);
+	float gHat = expf(-gradientnorm*gradientnorm/eps)/eps;
+	return gHat;
+//	return (gHat * gradientnorm);
 }
 
 __global__ void gradientskernel(float *d_imgIn, float *d_imgOutX, float *d_imgOutY, int w, int h, int nc){
@@ -50,7 +68,7 @@ __global__ void gradientskernel(float *d_imgIn, float *d_imgOutX, float *d_imgOu
 	}
 }
 
-__global__ void diffusifygradientsKernel(float *d_imgGradX, float *d_imgGradY, int w, int h, int nc, float gHat)
+__global__ void diffusifygradientsKernel(float *d_imgGradX, float *d_imgGradY, int w, int h, int nc, int gHatType, float eps)
 {
 	int x = threadIdx.x + blockDim.x * blockIdx.x;
 	int y = threadIdx.y + blockDim.y * blockIdx.y;
@@ -61,7 +79,15 @@ __global__ void diffusifygradientsKernel(float *d_imgGradX, float *d_imgGradY, i
 		int index = x + y * w + z * w * h;
 		float gradX = d_imgGradX[index];
 		float gradY = d_imgGradY[index];
-		float g = diffusity(gradX, gradY, gHat);
+		float g = 1.0f;
+		if (gHatType == 1){
+			g = diffusity(gradX, gradY);
+		} else if (gHatType == 2){
+			g = diffusity2(gradX, gradY, eps);
+		} else if (gHatType == 3){
+			g = diffusity3(gradX, gradY, eps);
+
+		}
 		gradX = g * gradX;
 		gradY = g * gradY;
 		d_imgGradX[index] = gradX;
@@ -157,6 +183,14 @@ int main(int argc, char **argv) {
 	getParam("tau", tau, argc, argv);
 	cout << "tau: " << tau << endl;
 
+	float eps = 0.01;
+	getParam("eps", eps, argc, argv);
+	cout << "eps: " << eps << endl;
+	
+	int gHatType = 1;
+	getParam("gHatType", gHatType, argc, argv);
+	cout << "gHatType: " << gHatType << endl;
+	
 	// ### Define your own parameters here as needed    
 
 	// Init camera / Load input image
@@ -219,6 +253,19 @@ int main(int argc, char **argv) {
 	// allocate raw output array (the computation result will be stored in this array, then later converted to mOut for displaying)
 	float *imgOut = new float[(size_t) w * h * mOut.channels()];
 
+	//allocate memory on device
+	int imgSize = h*w*nc;
+
+	float *d_imgIn;
+	float *d_imgOut;
+	float *d_imgOut2;
+	float *d_imgOut3;
+	cudaMalloc(&d_imgIn, imgSize * sizeof(float));
+	cudaMalloc(&d_imgOut, imgSize * sizeof(float));
+	cudaMalloc(&d_imgOut2, imgSize * sizeof(float));
+	cudaMalloc(&d_imgOut3, imgSize * sizeof(float));
+
+	
 	// For camera mode: Make a loop to read in camera frames
 #ifdef CAMERA
 	// Read a camera image frame every 30 milliseconds:
@@ -248,25 +295,14 @@ int main(int argc, char **argv) {
 
 
 	float avgTime = 0.0f;
-	int imgSize = h*w*nc;
 	for (int r = 0; r < repeats; r++) {
 		timer.start();
 		
 
 
-		//allocate memory on device
-		float *d_imgIn;
-		float *d_imgOut;
-		float *d_imgOut2;
-		float *d_imgOut3;
-		cudaMalloc(&d_imgIn, imgSize * sizeof(float));
-		cudaMalloc(&d_imgOut, imgSize * sizeof(float));
-		cudaMalloc(&d_imgOut2, imgSize * sizeof(float));
-		cudaMalloc(&d_imgOut3, imgSize * sizeof(float));
 
 		CUDA_CHECK;
 
-		cudaDeviceSynchronize();
 		cudaMemcpy(d_imgIn, imgIn, imgSize * sizeof(float),
 				cudaMemcpyHostToDevice);
 		CUDA_CHECK;
@@ -280,8 +316,7 @@ int main(int argc, char **argv) {
 
 			cudaDeviceSynchronize();
 			
-			float gHat = 1;
-			diffusifygradientsKernel <<<grid,block>>> (d_imgOut, d_imgOut2, w, h, nc, gHat);
+			diffusifygradientsKernel <<<grid,block>>> (d_imgOut, d_imgOut2, w, h, nc, gHatType, eps);
 			CUDA_CHECK;
 					
 			divkernel <<<grid,block>>> (d_imgOut, d_imgOut2, d_imgOut3, w, h, nc);
@@ -295,22 +330,15 @@ int main(int argc, char **argv) {
 		cudaMemcpy(imgOut, d_imgIn, imgSize * sizeof(float),
 						cudaMemcpyDeviceToHost);
 		
-		
-		//free memory
-		cudaFree(d_imgIn);
-		cudaFree(d_imgOut2);
-		cudaFree(d_imgOut);
-		cudaFree(d_imgOut3);
 
-		
 		timer.end();
 		t = timer.get();  // elapsed time in seconds
 		avgTime += t;
-		cout << "time GPU: " << t * 1000 << " ms" << endl;
+//		cout << "time GPU: " << t * 1000 << " ms" << endl;
 	}
 
 	avgTime = avgTime / repeats;
-	cout << "avg time GPU: " << avgTime * 1000 << " ms" << endl;
+//	cout << "avg time GPU: " << avgTime * 1000 << " ms" << endl;
 	// ###
 	// ###
 
@@ -339,6 +367,14 @@ int main(int argc, char **argv) {
 	delete[] imgIn;
 	delete[] imgOut;
 
+	
+	//free memory
+	cudaFree(d_imgIn);
+	cudaFree(d_imgOut2);
+	cudaFree(d_imgOut);
+	cudaFree(d_imgOut3);
+
+	
 
 	// close all opencv windows
 	cvDestroyAllWindows();
