@@ -66,96 +66,25 @@ __global__ void gradient_kernel(float *imgIn_gradX, float *imgIn_gradY, float *i
 	int ind_y = threadIdx.y + blockDim.y * blockIdx.y;
 	int ind = ind_x + w*ind_y;
 	
-	int ind_x_left, ind_x_right, ind_y_up, ind_y_down;
-	
-	//clamping
-	ind_x_left = (ind_x-1 < 0) ? 0 : ind_x-1;
-	ind_x_right = (ind_x+1 > w-1) ? w-1 : ind_x+1;
-	ind_y_down = ((ind_y+1)%h == 0) ? ind_y : ind_y+1;
-	ind_y_up = (ind_y%h == 0) ? ind_y : ind_y-1;
-	
-	//x gradient
-	imgIn_gradX[ind] = (3*imgIn[ind_x_right + w*ind_y_down] + 10*imgIn[ind_x_right+w*ind_y] + 3*imgIn[ind_x_right+w*ind_y_up] - 
-			3*imgIn[ind_x_left+w*ind_y_down] - 10*imgIn[ind_x_left+w*ind_y] - 3*imgIn[ind_x_left+w*ind_y_up])/32.f;
-
-	//y gradient
-	imgIn_gradY[ind] = (3*imgIn[ind_x_right + w*ind_y_down] + 10*imgIn[ind_x+w*ind_y_down] + 3*imgIn[ind_x_left+w*ind_y_down] - 
-			3*imgIn[ind_x_right+w*ind_y_up] - 10*imgIn[ind_x+w*ind_y_up] - 3*imgIn[ind_x_left+w*ind_y_up])/32.f;
-
-}
-
-
-// rotational symmetric derivative discretization for x and y partial derivative
-__global__ 
-void rotationaldevkernel_x(float *d_imgIn, float *d_imgOut, int w, int h, int nc) {
-    int x = threadIdx.x + blockDim.x * blockIdx.x;
-    int y = threadIdx.y + blockDim.y * blockIdx.y;
-    int z = threadIdx.z + blockDim.z * blockIdx.z;
-
-    if (x<w && y < h && z < nc)
+    if (ind_x<w && ind_y < h*nc)
     {
-        int index = x + y * w + z * w * h;
-        
-        // get the x with clamping
-        int x_tmpi = x + 1;
-        int x_tmpj = x - 1;
-
-        if (x_tmpi<0) x_tmpi = 0;
-        if (x_tmpi>=w) x_tmpi = w-1;
-
-        // get the y with clamping
-        int y_tmpi = y + 1;
-        int y_tmpj = y - 1;
-
-        if (y_tmpj<0) y_tmpj = 0;
-        if (y_tmpj>=h) y_tmpj = h-1;
-
-        // assign the discretisation result to the pixel
-        d_imgOut[index] =   3*d_imgIn[x_tmpi + y_tmpi * w + z * w * h]
-                            + 10*d_imgIn[x_tmpi + y * w + z * w * h]
-                            + 3*d_imgIn[x_tmpi + y_tmpj * w + z * w * h]
-                            - 3*d_imgIn[x_tmpj + y_tmpi * w + z * w * h]
-                            - 10*d_imgIn[x_tmpj + y * w + z * w * h]
-                            - 3*d_imgIn[x_tmpj + y_tmpj * w + z * w * h];
-
-        d_imgOut[index] /= 32.f;
+		int ind_x_left, ind_x_right, ind_y_up, ind_y_down;
+		
+		//clamping
+		ind_x_left = (ind_x-1 < 0) ? 0 : ind_x-1;
+		ind_x_right = (ind_x+1 > w-1) ? w-1 : ind_x+1;
+		ind_y_down = ((ind_y+1)%h == 0) ? ind_y : ind_y+1;
+		ind_y_up = (ind_y%h == 0) ? ind_y : ind_y-1;
+		
+		//x gradient
+		imgIn_gradX[ind] = (3*imgIn[ind_x_right + w*ind_y_down] + 10*imgIn[ind_x_right+w*ind_y] + 3*imgIn[ind_x_right+w*ind_y_up] - 
+				3*imgIn[ind_x_left+w*ind_y_down] - 10*imgIn[ind_x_left+w*ind_y] - 3*imgIn[ind_x_left+w*ind_y_up])/32.f;
+	
+		//y gradient
+		imgIn_gradY[ind] = (3*imgIn[ind_x_right + w*ind_y_down] + 10*imgIn[ind_x+w*ind_y_down] + 3*imgIn[ind_x_left+w*ind_y_down] - 
+				3*imgIn[ind_x_right+w*ind_y_up] - 10*imgIn[ind_x+w*ind_y_up] - 3*imgIn[ind_x_left+w*ind_y_up])/32.f;
     }
-}
 
-__global__ 
-void rotationaldevkernel_y(float *d_imgIn, float *d_imgOut, int w, int h, int nc) {
-    int x = threadIdx.x + blockDim.x * blockIdx.x;
-    int y = threadIdx.y + blockDim.y * blockIdx.y;
-    int z = threadIdx.z + blockDim.z * blockIdx.z;
-
-    if (x<w && y < h && z < nc)
-    {
-        int index = x + y * w + z * w * h;
-        
-        // get the x with clamping
-        int x_tmpi = x + 1;
-        int x_tmpj = x - 1;
-
-        if (x_tmpi<0) x_tmpi = 0;
-        if (x_tmpi>=w) x_tmpi = w-1;
-
-        // get the y with clamping
-        int y_tmpi = y + 1;
-        int y_tmpj = y - 1;
-
-        if (y_tmpj<0) y_tmpj = 0;
-        if (y_tmpj>=h) y_tmpj = h-1;
-
-        // assign the discretisation result to the pixel
-        d_imgOut[index] =   3*d_imgIn[x_tmpi + y_tmpi * w + z * w * h]
-                            + 10*d_imgIn[x + y_tmpi * w + z * w * h]
-                            + 3*d_imgIn[x_tmpj + y_tmpi * w + z * w * h]
-                            - 3*d_imgIn[x_tmpi + y_tmpj * w + z * w * h]
-                            - 10*d_imgIn[x + y_tmpj * w + z * w * h]
-                            - 3*d_imgIn[x_tmpj + y_tmpj * w + z * w * h];
-
-        d_imgOut[index] /= 32.f;
-    }
 }
 
 __global__

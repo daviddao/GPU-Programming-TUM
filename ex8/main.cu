@@ -36,8 +36,8 @@ void calculate2DEigen(float x11, float x12, float x21, float x22, float& eigen1,
     float determinant = x11 * x22 - x12 * x21;
 
     // Calculate Eigenvalue
-    tmp1 = trace / 2.f + sqrt((trace * trace)/(4 - determinant));
-    tmp2 = trace / 2.f - sqrt((trace * trace)/(4 - determinant));
+    tmp1 = trace / 2.f + sqrtf((trace * trace)/4.f - determinant);
+    tmp2 = trace / 2.f - sqrtf((trace * trace)/4.f - determinant);
 
     // Sort values
     if (tmp1 > tmp2) {
@@ -47,6 +47,7 @@ void calculate2DEigen(float x11, float x12, float x21, float x22, float& eigen1,
         eigen1 = tmp1;
         eigen2 = tmp2;
     }
+    assert(eigen1 >= 0);
 }
 
 __global__ 

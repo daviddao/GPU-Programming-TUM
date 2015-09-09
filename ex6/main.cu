@@ -74,15 +74,6 @@ __global__ void convolutionkernel(float *d_imgIn, float *d_imgOut,
 			sh_imgIn[pos] = val;
 		}
 		
-//		for (int ptT=threadIdx.x+blockDim.x*threadIdx.y; ptT<sh_size; ptT += blockDim.x*blockDim.y){
-//			int xi = (ptT%w_blockpadded) + (x0-radius); //convert to pixel coordinates
-//			int yi = (ptT/w_blockpadded) + (y0-radius);
-//			xi = max(0, min(w-1,xi)); //clamping
-//			yi = max(0, min(h-1,yi));
-//			float val = d_imgIn[xi + (size_t)w*yi + nOmega*z];
-//			sh_imgIn[ptT] = val;
-//		}
-		
 		__syncthreads();
 		
 		if (isActive) {
@@ -90,34 +81,8 @@ __global__ void convolutionkernel(float *d_imgIn, float *d_imgOut,
 			float outputPixel = 0;
 			for (int diffX = -radius; diffX < radius + 1; diffX++) {
 				for (int diffY = -radius; diffY < radius + 1; diffY++) {
-//					int tmpi = x + diffX;
-//					int tmpj = y + diffY;
-//					if (tmpi < 0)
-//						tmpi = 0;
-//					if (tmpi >= w)
-//						tmpi = w - 1;
-//					if (tmpj < 0)
-//						tmpj = 0;
-//					if (tmpj >= h)
-//						tmpj = h - 1;
-//					int indexOffset = tmpi + tmpj * w + z * h * w;
-					
-					
-//					int ptT =threadIdx.x+blockDim.x*threadIdx.y;
-
-					
-					//					int xi = (ptT%w_blockpadded);
-//					int yi = (ptT/w_blockpadded);
-//
-//					xi = xi + radius + diffX;
-//					yi = yi + radius + diffY;
-//					xi = max(0, min(w_blockpadded-1,xi));
-//					yi = max(0, min(h_blockpadded-1,yi));
 					int indexOffset = idxBlockToPadded(threadIdx.x+diffX, threadIdx.y+diffY, blockDim.x, radius);
-					
-					//d_imgOut[index] += d_imgIn[indexOffset] * d_kernel[(diffX+radius + (kernelwidth)*(diffY+radius))];
-					//sh_data[iBlock] += d_imgIn[indexOffset] * d_kernel[(diffX+radius + (kernelwidth)*(diffY+radius))];
-//					outputPixel += d_imgIn[indexOffset] * d_kernel[(diffX + radius + (kernelwidth) * (diffY + radius))];
+
 					outputPixel += sh_imgIn[indexOffset] *  d_kernel[(diffX + radius + (kernelwidth) * (diffY + radius))];
 
 				}
@@ -282,8 +247,8 @@ int main(int argc, char **argv) {
 					* exp(
 							-((diffX * diffX + diffY * diffY)
 									/ (2 * sigma * sigma)));
-			if (entry < 0.001f)
-				entry = 0;
+//			if (entry < 0.001f)
+//				entry = 0;
 			gaussian[i + (2 * radius + 1) * j] = entry;
 			sum += entry;
 		}

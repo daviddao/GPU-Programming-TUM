@@ -200,7 +200,7 @@ int main(int argc, char **argv) {
 			diffX=i-radius;
 			diffY=j-radius;
 			entry = factor * exp(-((diffX*diffX+diffY*diffY)/(2*sigma*sigma)));
-			if (entry < 0.001f) entry = 0;
+			//if (entry < 0.001f) entry = 0;
 			gaussian[i+(2*radius+1)*j]=entry;
 			sum += entry;
 		}
@@ -214,14 +214,17 @@ int main(int argc, char **argv) {
 		cout << endl;
 	}
 
+	
+	
+	
 
 	//create kernel
-	cv::Mat kernel(radius*2+1, radius*2+1, CV_32FC1, gaussian);
-	
-	//make max value 1
+	//cv::Mat kernel(radius*2+1, radius*2+1, CV_32FC1, gaussian);
+//	float max_value = gaussian[radius + (2*radius+1)*radius];
+//	//make max value 1
 //	for (int j = 0; j < 2 * radius+1; j++) {
 //		for (int i=0; i< 2 *radius+1; i++) {
-//			gaussian[i + (2*radius+1)*j] = gaussian[i + (2*radius+1)*j]/gaussian[radius + (2*radius+1)*radius];
+//			gaussian[i + (2*radius+1)*j] = gaussian[i + (2*radius+1)*j]/max_value;
 //		}
 //	}
 //	cv::Mat kernel(radius*2+1, radius*2+1, CV_32FC1, gaussian);
@@ -229,7 +232,12 @@ int main(int argc, char **argv) {
 	
 	//normalize kernel
 	//cv::normalize(kernel, kernel, 1);
-	showImage("Kernel", kernel, 0,0);
+//	showImage("Kernel", kernel, 0,0);
+	
+	
+	
+	
+	
 	
 	
 //	sum = 0;
