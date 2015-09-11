@@ -42,20 +42,37 @@ __global__ void mykernel(float *d_imgIn, int *d_hist, int w, int h, int nc)
 	}
 }
 
-//__global__ void mykernel_shared(float *d_imgIn, int *d_hist, int w, int h, int nc)
-//{
-//	__shared__ float 
-//    int x = threadIdx.x + blockDim.x * blockIdx.x;
-//    int y = threadIdx.y + blockDim.y * blockIdx.y;
-//    int z = threadIdx.z + blockDim.z * blockIdx.z;
-//    
-//	if (x < w && y < h && z < nc)
-//	{
-//		int ind = x + w*y + w*h*z; 
-//		int index = d_imgIn[ind]*255.f;
-//		atomicAdd(&d_hist[index], 1);
-//	}
-//}
+__global__ void mykernel_shared(float *d_imgIn, int *d_hist, int w, int h, int nc)
+{
+   __shared__ 
+   int shared_hist[256];
+
+   // first thread init the shared memory
+   if (threadIdx.x < 256) {
+        shared_hist[threadIdx.x] = 0;
+   }
+
+   __syncthreads();
+
+
+   int x = threadIdx.x + blockDim.x * blockIdx.x;
+   int y = threadIdx.y + blockDim.y * blockIdx.y;
+   int z = threadIdx.z + blockDim.z * blockIdx.z;
+   
+	if (x < w && y < h && z < nc)
+	{
+		int ind = x + w*y + w*h*z; 
+		int index = d_imgIn[ind]*255.f;
+		atomicAdd(&shared_hist[index], 1);
+	}
+
+    __syncthreads();
+
+    // first block thread updates global histogramm
+    if (threadIdx.x < 256) {
+        atomicAdd(&d_hist[threadIdx.x],shared_hist[threadIdx.x]);
+    }
+}
 
 int main(int argc, char **argv)
 {
@@ -213,16 +230,30 @@ int main(int argc, char **argv)
 	//copy host memory to device
 	cudaMemcpy(d_imgIn, imgIn, imgSize*sizeof(float), cudaMemcpyHostToDevice); CUDA_CHECK;
 	cudaMemcpy(d_hist, hist, hist_size*sizeof(int), cudaMemcpyHostToDevice); CUDA_CHECK;
-	
+
+    timer.start();
+    for (int i=0; i< repeats ; i++)
+    {
+        
+            mykernel_shared <<<grid,block>>> (d_imgIn, d_hist, w, h, nc);
+        
+    }
+    timer.end();
+    t = timer.get();  // elapsed time in seconds
+    cout << "Average time (shared) for " << repeats << " repeat(s): " << t * 1000 / repeats << " ms" << endl;    
+
+    cudaMemcpy(d_hist, hist, hist_size*sizeof(int), cudaMemcpyHostToDevice); CUDA_CHECK;
+    
+    timer.start();
 	for (int i=0; i< repeats ; i++)
 	{
-		timer.start();
+		
 			mykernel <<<grid,block>>> (d_imgIn, d_hist, w, h, nc);
-		timer.end();
-		t += timer.get();  // elapsed time in seconds
-	}	
-	cout << "Average time for " << repeats << " repeat(s): " << t * 1000 / repeats << " ms" << endl;	
-	
+		
+	}
+    timer.end();
+    t = timer.get();  // elapsed time in seconds	
+	cout << "Average time (naive) for " << repeats << " repeat(s): " << t * 1000 / repeats << " ms" << endl;  
 	
 	
 //    for(int i=0;i<hist_size;i++)

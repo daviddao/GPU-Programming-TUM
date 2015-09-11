@@ -24,12 +24,16 @@ using namespace std;
 // uncomment to use the camera
 //#define CAMERA
 
-// calculate eigenvalues
+// calculate eigenvalues and its corresponding
+//Using Formula from
+//http://www.math.harvard.edu/archive/21b_fall_04/exhibits/2dmatrices/index.html
 __device__
-void calculate2DEigen(float x11, float x12, float x21, float x22, float& eigen1, float& eigen2) {
+void calculate2DEigen(float x11, float x12, float x21, float x22, float& eigen1, float& eigen2, float* vector1, float* vector2) {
     
     float tmp1;
     float tmp2;
+    float tmp1v[2];
+    float tmp2v[2];
     // Calculate the trace
     float trace = x11 + x22;
     // Calculate the determinant
@@ -39,15 +43,40 @@ void calculate2DEigen(float x11, float x12, float x21, float x22, float& eigen1,
     tmp1 = trace / 2.f + sqrtf((trace * trace)/4.f - determinant);
     tmp2 = trace / 2.f - sqrtf((trace * trace)/4.f - determinant);
 
+    // Calculate Eigenvectors
+    if (x12 == 0) {
+        tmp1v[0] = 1.f;
+        tmp1v[1] = 0.f;
+
+        tmp2v[0] = 0.f;
+        tmp2v[1] = 1.f;
+    } else {
+        tmp1v[0] = tmp1 - x22; //L1 - d
+        tmp1v[1] = x21; //c
+
+        tmp2v[0] = tmp2 - x22; //L2 - d
+        tmp2v[1] = x21; //c
+    }
+
     // Sort values
     if (tmp1 > tmp2) {
         eigen1 = tmp2;
         eigen2 = tmp1;
+
+        vector1 = tmp2v;
+        vector2 = tmp1v;
+
     } else {
         eigen1 = tmp1;
         eigen2 = tmp2;
+
+        vector1 = tmp1v;
+        vector2 = tmp2v;
     }
+    // Check eigenvalues are positive definite
     assert(eigen1 >= 0);
+
+
 }
 
 __global__ 
@@ -193,6 +222,8 @@ void edgedetector(float* m1, float* m2, float* m3, float* edgeOut, int w, int h,
 
     float eigen1;
     float eigen2;
+    float vector1[2];
+    float vector2[2];
 
     if (x<w && y < h && z < nc)
     {   
@@ -208,7 +239,7 @@ void edgedetector(float* m1, float* m2, float* m3, float* edgeOut, int w, int h,
         int blueIndex = x + y * w + 2 * w * h;
 
         // calculate the eigenvalues
-        calculate2DEigen(x11, x12, x21, x22, eigen1, eigen2);
+        calculate2DEigen(x11, x12, x21, x22, eigen1, eigen2, vector1, vector2);
 
         if (eigen1 >= alpha) {
             //Corner, make it red!

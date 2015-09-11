@@ -28,15 +28,15 @@ using namespace std;
 //CPU Computation
 
 
-__global__ void mykernel(float *d_imgIn, int w, int h, int nc, float gamma)
+__global__ void mykernel(float *d_imgIn, int h, int nc, size_t pitch, float gamma)
 {
 	int x = threadIdx.x + blockDim.x * blockIdx.x;
 	int y = threadIdx.y + blockDim.y * blockIdx.y;
 	int z = threadIdx.z + blockDim.z * blockIdx.z;
 	//d_imgIn[ind_x + ind_y * w + ind_z * w * h] = 0;
-	if (x<w && y < h && z < nc)
+	if (x<pitch && y < h && z < nc)
 	{
-		int index = x + y * w + z * w * h;
+		int index = x + y * pitch + z * pitch * h;
 		d_imgIn[index] = powf(d_imgIn[index], gamma);
 	}
 }
@@ -234,23 +234,25 @@ int main(int argc, char **argv)
 
 		//allocate memory on device
 		float *d_imgIn;
-		
-		cudaMalloc(&d_imgIn, imgSize*sizeof(float));
+		size_t pitchInBytes;
+        size_t pitch;
+		pitchInBytes = cudaMallocPitch(&d_imgIn, &pitchInBytes, w, h);
+        pitch = pitchInBytes / sizeof(float);
 		CUDA_CHECK;
 		
 		//copy host memory to device
-		cudaMemcpy(d_imgIn, imgIn, imgSize*sizeof(float), cudaMemcpyHostToDevice);
+		cudaMemcpy2D(d_imgIn, pitch, imgIn, w, w, h, cudaMemcpyHostToDevice);
 		CUDA_CHECK;
 	
 		dim3 block = dim3(32,8,1);
 		dim3 grid = dim3((w + block.x - 1) / block.x, (h+block.y-1)/block.y, (nc));
         timer.start();
 
-		mykernel <<<grid,block>>> (d_imgIn, w, h, nc, gamma);
+		mykernel <<<grid,block>>> (d_imgIn, h, nc, pitch, gamma);
 		timer.end(); t = timer.get();  // elapsed time in seconds
 
 		//copy result back to host memory
-		cudaMemcpy(imgOut, d_imgIn, imgSize * sizeof(float), cudaMemcpyDeviceToHost);
+		cudaMemcpy2D(imgOut, w, d_imgIn, pitch, w, h, cudaMemcpyDeviceToHost);
 		CUDA_CHECK;
 		
 		//free memory
