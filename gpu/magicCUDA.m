@@ -9,7 +9,7 @@ commandstr = ['nvcc -O3 -DNDEBUG -c ' newstring ' -Xcompiler -fPIC -I/usr/local/
 
 
 unix(commandstr)
-commandstr2 = ['mex ', ostring, ' -L/usr/local/cuda-7.0/lib64 -L/usr/local/lehrstuhl/DIR/matlab-R2015a/bin/glnxa64 -lcudart -lcufft -lmwgpu']
+commandstr2 = ['mex ', ostring, ' -L/usr/local/cuda/lib64 -L/usr/local/lehrstuhl/DIR/matlab-R2015a/bin/glnxa64 -lcudart -lcufft -lmwgpu']
 eval(commandstr2)
 
 

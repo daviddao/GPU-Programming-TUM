@@ -79,7 +79,10 @@ while (iter<max_it) && (ntol > tol) && (sigma2 > 1e-8)
     L_old=L;
     tic
     % Check whether we want to use the Fast Gauss Transform
-    [P1,Pt1, PX, L]=cpd_P(X,T, sigma2 ,outliers); st='';
+    disp(size(X))
+    disp(size(T))
+    [P1,Pt1, PX, L]=cpd_P_GPU(X,T, sigma2 ,outliers); st='';
+    disp('cpd_P_GPU: ')
     toc
     tic
     L = L + lambda/2*trace(W'*G*W);
@@ -100,6 +103,7 @@ while (iter<max_it) && (ntol > tol) && (sigma2 > 1e-8)
 
     % Plot the result on current iteration
     iter=iter+1;
+    disp('the rest: ')
     toc
 %toc
 end
