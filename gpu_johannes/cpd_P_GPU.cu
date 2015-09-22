@@ -9,78 +9,39 @@
 #include <vector>
 #include <cmath>
 #include <cuda_runtime.h>
+#include "cublas_v2.h"
+
+#define IDX2C(i,j,ld) (((j)*(ld))+(i)) //modify index for 0-based indexing
 
 #define	max(A, B)	((A) > (B) ? (A) : (B))
 #define	min(A, B)	((A) < (B) ? (A) : (B))
 
-__global__
-void magickernel(
-		double* d_X,
-		double* d_T, 
-        double d_sigma2,
-		double d_outlier,
-        double* d_P1,
-        double* d_Pt1,
-        double* d_Px,
-    	double* d_E,
-        int d_N,
-		int d_M,
-        int d_D,
-        double* d_P,
-		double* d_temp_x
-        ) {
-	
-	
-		int		n, m, d;
-		double	ksig, diff, razn, outlier_tmp, sp;
-	  	  
-	  ksig = -2.0 * d_sigma2;
-	  outlier_tmp=(d_outlier*d_M*pow (-ksig*3.14159265358979,0.5*d_D))/((1-d_outlier)*d_N); 
-	 /* printf ("ksig = %lf\n", *sigma2);*/
-	  /* outlier_tmp=*outlier*N/(1- *outlier)/M*(-ksig*3.14159265358979); */
-	  
-	  
-	  for (n=0; n < d_N; n++) {
-	      
-	      sp=0;
-	      for (m=0; m < d_M; m++) {
-	          razn=0;
-	          for (d=0; d < d_D; d++) {
-	             diff= d_X[n+d*d_N]-d_T[m+d*d_M];
-	             diff=diff*diff;
-	             razn+=diff;
-	          }
-	          
-	          d_P[m]=exp(razn/ksig);
-	          sp+=d_P[m];
-	      }
-	      
-	      sp+=outlier_tmp;
-	      d_Pt1[n]=1-outlier_tmp / sp;
-	      
-	      for (d=0; d < d_D; d++) {
-	    	  d_temp_x[d] = d_X[n+d*d_N] / sp;
-//	    	  *(temp_x+d)=*(x+n+d*N)/ sp;
-	      }
-	         
-	      for (m=0; d_M < d_M; d_M++) {
-	         
-	          d_P1[m] += d_P[m] / sp;
-//	    	  *(P1+m)+=*(P+m)/ sp;
-	          
-	          for (d=0; d < d_D; d++) {
-	        	  d_Px[m+d*d_M] += d_temp_x[d] * d_P[m];	          }
-	          
-	      }
-	      
-	   *d_E +=  -log(sp);     
-	  }
-	  *d_E +=d_D*d_N*log(d_sigma2)/2;
-	    
-	 
+static __inline__ void modify (cublasHandle_t handle, float *m, int ldm, int n, int p, int q, float alpha, float beta){
+    cublasSscal (handle, n-p, &alpha, &m[IDX2C(p,q,ldm)], ldm);
+    cublasSscal (handle, ldm-p, &beta, &m[IDX2C(p,q,ldm)], 1);
+}
 
-	  return;
-		
+
+
+
+__global__ void calc_nominator(double* devPtrX, double* devPtrY, double* devPtrPSlice, double ksig, int N, int M, int D, int slice_size){
+	
+	int x = threadIdx.x + blockDim.x * blockIdx.x;
+	int y = threadIdx.y + blockDim.y * blockIdx.y;
+
+	//d_imgIn[ind_x + ind_y * w + ind_z * w * h] = 0;
+	if (x<M && y < slice_size){
+		double diff = 0;
+		double razn = 0;
+		for (int d=0; d < D; d++) { //iterate through D dimensions
+        	
+            diff=devPtrX[x+d*N] - devPtrY[y+d*M];
+            diff=diff*diff; //take the square of the euclidean norm of one scalar -> square the scalar
+            razn+=diff; //proposed name: eucl_dist_sqr; add up the differences for each dimension to get the scalar length of the high-dimensional vector
+        }
+		devPtrPSlice[x+M*y]=exp(razn/ksig); //nominator
+
+	}
 }
 
 
@@ -97,66 +58,153 @@ void cpd_comp(
 		int M,
         int D
         )
-
 {
   int		n, m, d;
   double	ksig, diff, razn, outlier_tmp, sp;
   double	*P, *temp_x;
-  
-  P = (double*) calloc(M, sizeof(double));
-  temp_x = (double*) calloc(D, sizeof(double));
-  
+  double *PSlice;
+  double diffXY;
+  int slice_size = 50;
+
   ksig = -2.0 * *sigma2;
   outlier_tmp=(*outlier*M*pow (-ksig*3.14159265358979,0.5*D))/((1-*outlier)*N); 
  /* printf ("ksig = %lf\n", *sigma2);*/
   /* outlier_tmp=*outlier*N/(1- *outlier)/M*(-ksig*3.14159265358979); */
   
+  P = (double*) calloc(M, sizeof(double));
+  temp_x = (double*) calloc(D, sizeof(double));
+  PSlice = (double*) calloc(slice_size*M, sizeof(double));
+
+  
+  
+  
+  
+  
+  cudaError_t cudaStat;    
+  cublasStatus_t stat;
+  cublasHandle_t handle;
+  double* devPtrX;
+  double* devPtrY;
+  double* devPtrPSlice; 
+  double* devPtrP1;
+  double* devPtrPt1;
+  double* devPtrPx;
+  double* devPtrE;
+  
+  
+  cudaStat = cudaMalloc ((void**)&devPtrX, N*D*sizeof(double));
+  cudaStat = cudaMalloc ((void**)&devPtrY, M*D*sizeof(double));
+  cudaStat = cudaMalloc ((void**)&devPtrPSlice, M*slice_size*sizeof(double));
+  cudaStat = cudaMalloc ((void**)&devPtrP1, N*sizeof(double));
+  cudaStat = cudaMalloc ((void**)&devPtrPt1, M*sizeof(double));
+  cudaStat = cudaMalloc ((void**)&devPtrPx, M*D*sizeof(double));
+  cudaStat = cudaMalloc ((void**)&devPtrE, M*D*sizeof(double));
+
+  
+  stat = cublasCreate(&handle);
+  stat = cublasSetMatrix (N, D, sizeof(*x), x, N, devPtrX, N);
+  stat = cublasSetMatrix (M, D, sizeof(*y), y, M, devPtrY, M);
+  stat = cublasSetMatrix (N, D, sizeof(*x), P, N, devPtrPSlice, N);
+//  stat = cublasSetMatrix (M, D, sizeof(*y), y, M, devPtrP1, M);
+//  stat = cublasSetMatrix (M, D, sizeof(*y), y, M, devPtrPt1, M);
+//  stat = cublasSetMatrix (M, D, sizeof(*y), y, M, devPtrPx, M);
+
+
+
+  
+  
+  
+
+	dim3 block = dim3(64, 4, 1);
+	dim3 grid = dim3((M + block.x - 1) / block.x,
+			(slice_size + block.y - 1) / block.y);
+
+	calc_nominator <<<grid, block>>> (devPtrX, devPtrY, devPtrPSlice, ksig, N, M, D, slice_size);
+  
+  cudaMemcpy(PSlice, devPtrPSlice,  M*slice_size* sizeof(double), cudaMemcpyDeviceToHost);  
+  
+  
+ 
+
+  
+  
+  cudaFree(devPtrX);
+  cudaFree(devPtrY);
+  cudaFree(devPtrPSlice);
+  cudaFree(devPtrP1);
+  cudaFree(devPtrPt1);
+  cudaFree(devPtrPx);
+  cudaFree(devPtrE);
+
+  
+  
+  
+  
+  
+  
+  
+  
+  
+
+  
+  
+  
   
   for (n=0; n < N; n++) {
       
       sp=0;
-      for (m=0; m < M; m++) {
+      for (m=0; m < M; m++) { //iterate through all points (M: width of y)
           razn=0;
-          for (d=0; d < D; d++) {
-             diff=*(x+n+d*N)-*(y+m+d*M);  diff=diff*diff;
-             razn+=diff;
+          for (d=0; d < D; d++) { //iterate through D dimensions
+             diff=*(x+n+d*N)-*(y+m+d*M);  
+             diff=diff*diff; //take the square of the euclidean norm of one scalar -> square the scalar
+             razn+=diff; //proposed name: eucl_dist_sqr; add up the differences for each dimension to get the scalar length of the high-dimensional vector
           }
           
-          *(P+m)=exp(razn/ksig);
-          sp+=*(P+m);
+          P[m]=exp(razn/ksig); //nominator
+          if(n< 2){
+//        	  mexPrintf ("P(%d, %d): %f , fraction: %f  \n", n, m, P[m], razn/ksig);
+
+        	  if (P[m] != PSlice[m + n * M]){
+        		  mexPrintf ("Assertion failed at (%d, %d): %f and %f  \n", n, m, P[m], PSlice[m + n * M]);
+        	  }
+          }
+          sp+=P[m]; //sum in the denominator
       }
       
-      sp+=outlier_tmp;
-      *(Pt1+n)=1-outlier_tmp/ sp;
+      sp+=outlier_tmp; //for this particular x point, we calculate the complete denominator
+      Pt1[n]=1-outlier_tmp/ sp; //see documentation: (1 - ca)
       
       for (d=0; d < D; d++) {
-       *(temp_x+d)=*(x+n+d*N)/ sp;
+       temp_x[d]=x[n+d*N]/ sp;
       }
          
       for (m=0; m < M; m++) {
          
-          *(P1+m)+=*(P+m)/ sp;
+          P1[m]+=P[m]/ sp; //P1 is the P * sum_vector from the equation (see documentation) 
           
           for (d=0; d < D; d++) {
-          *(Px+m+d*M)+= *(temp_x+d)**(P+m);
+          Px[m+d*M]+= temp_x[d]*P[m]; 
           }
           
       }
       
-   *E +=  -log(sp);     
+   *E +=  -log(sp);	//entropy: measure of overall change
   }
   *E +=D*N*log(*sigma2)/2;
     
   
   free((void*)P);
+  free((void*)PSlice);
+
   free((void*)temp_x);
 
   return;
 }
 
 /* Input arguments */
-#define IN_X		prhs[0]
-#define IN_T		prhs[1]
+#define IN_x		prhs[0]
+#define IN_y		prhs[1]
 #define IN_sigma2	prhs[2]
 #define IN_outlier	prhs[3]
 
@@ -171,13 +219,17 @@ void cpd_comp(
 /* Gateway routine */
 void mexFunction( int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[] )
 {
-  double *x, *t, *sigma2, *outlier, *P1, *Pt1, *Px, *E;
+    cudaError_t cudaStat;    
+    cublasStatus_t stat;
+    cublasHandle_t handle;
+	
+  double *x, *y, *sigma2, *outlier, *P1, *Pt1, *Px, *E;
   int     N, M, D;
   
   /* Get the sizes of each input argument */
-  N = mxGetM(IN_X);
-  M = mxGetM(IN_T);
-  D = mxGetN(IN_X);
+  N = mxGetM(IN_x);
+  M = mxGetM(IN_y);
+  D = mxGetN(IN_x);
   
   /* Create the new arrays and set the output pointers to them */
   OUT_P1     = mxCreateDoubleMatrix(M, 1, mxREAL);
@@ -186,8 +238,8 @@ void mexFunction( int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[] )
   OUT_E       = mxCreateDoubleMatrix(1, 1, mxREAL);
 
     /* Assign pointers to the input arguments */
-  x      = mxGetPr(IN_X);
-  t       = mxGetPr(IN_T);
+  x      = mxGetPr(IN_x);
+  y       = mxGetPr(IN_y);
   sigma2       = mxGetPr(IN_sigma2);
   outlier    = mxGetPr(IN_outlier);
 
@@ -199,67 +251,8 @@ void mexFunction( int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[] )
   Px      = mxGetPr(OUT_Px);
   E     = mxGetPr(OUT_E);
    
-  mexPrintf("size of N: %d, M: %d, D: %d", N, M, D);
-
-  
   /* Do the actual computations in a subroutine */
-
-  //cpd_comp(x, t, sigma2, outlier, P1, Pt1, Px, E, N, M, D);
-  
-  //allocate memory on GPU
-   double* d_X;
-   double* d_T;
-   double* d_P1;
-   double* d_Pt1;
-   double* d_Px;
-   double* d_E;
-   double* d_P;
-   double* temp_x;
-   
-   int sizeX = M*D;
-   int sizeT = N*D;
-   
-   cudaMalloc(&d_X, sizeX * sizeof(double));
-   cudaMalloc(&d_T, sizeT * sizeof(double));
-   cudaMalloc(&d_P1, M  * sizeof(double));
-   cudaMalloc(&d_Pt1,N  * sizeof(double));
-   cudaMalloc(&d_Px, sizeX * sizeof(double));
-   cudaMalloc(&d_E,1 * sizeof(double));
-   cudaMalloc(&d_P, M * sizeof(double));
-   cudaMalloc(&temp_x, D * sizeof(double));
-   
-   
-   cudaMemcpy(d_X, x, sizeX * sizeof(double), cudaMemcpyHostToDevice);
-   cudaMemcpy(d_T, t, sizeT * sizeof(double), cudaMemcpyHostToDevice);
-   cudaMemcpy(d_P1, P1, M * sizeof(double), cudaMemcpyHostToDevice);
-   cudaMemcpy(d_Pt1, Pt1, N * sizeof(double), cudaMemcpyHostToDevice);
-   cudaMemcpy(d_Px, Px, sizeX * sizeof(double), cudaMemcpyHostToDevice);
-   cudaMemcpy(d_E, E, 1 * sizeof(double), cudaMemcpyHostToDevice);
-  
-   
-   dim3 block = dim3(32, 8, 1);
-   dim3 grid = dim3(1,2,1);
-
-   magickernel <<<grid, block>>> (d_X, d_T, *sigma2, *outlier, d_P1, d_Pt1, d_Px, d_E, N, M, D, d_P, temp_x);
-   
-   cudaMemcpy(P1, d_P1, M * sizeof(double), cudaMemcpyDeviceToHost);
-   cudaMemcpy(Pt1, d_Pt1, N * sizeof(double), cudaMemcpyDeviceToHost);
-   cudaMemcpy(Px, d_Px, sizeX * sizeof(double), cudaMemcpyDeviceToHost);
-   cudaMemcpy(E, d_E, 1 * sizeof(double), cudaMemcpyDeviceToHost);
-   
-  
-   cudaFree(d_X);
-   cudaFree(d_T);
-   cudaFree(d_P1);
-   cudaFree(d_Pt1);
-   cudaFree(d_Px);
-   cudaFree(d_E);
-   cudaFree(d_P);
-   cudaFree(temp_x);
-  
-  
-  
-  
+  cpd_comp(x, y, sigma2, outlier, P1, Pt1, Px, E, N, M, D);
   
   return;
 }

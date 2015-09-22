@@ -1,22 +1,22 @@
-/*
-Andriy Myronenko
+/**
+ * Emanuele Rodola
+ * TU Munich
+ * Jun 2015
  */
-
-
 #include <stdio.h>
-#include <math.h>
-#include <stdlib.h>
 #include "mex.h"
+#include <iostream>
+#include <vector>
+#include <cmath>
 #include <cuda_runtime.h>
-#include "cublas_v2.h"
 
 #define	max(A, B)	((A) > (B) ? (A) : (B))
 #define	min(A, B)	((A) < (B) ? (A) : (B))
 
 __global__
 void magickernel(
-		double* d_x,
-		double* d_y, 
+		double* d_X,
+		double* d_T, 
         double d_sigma2,
 		double d_outlier,
         double* d_P1,
@@ -27,80 +27,62 @@ void magickernel(
 		int d_M,
         int d_D,
         double* d_P,
-		double* temp_x
+		double* d_temp_x
         ) {
-    //int x = threadIdx.x + blockDim.x * blockIdx.x;
-    //int y = threadIdx.y + blockDim.y * blockIdx.y;
-//    int z = threadIdx.z + blockDim.z * blockIdx.z;
-    
-    
-    //int index = x + y;
-    
-    int		n, m, d;
-    double	ksig, diff, razn, outlier_tmp, sp;
-//    double	*d_P, *temp_x;
-    
-//    double d_P[d_M];
-//    double temp_x[d_D];
-    
-//    d_P = (double*) calloc(d_M, sizeof(double));
-//    temp_x = (double*) calloc(d_D, sizeof(double));
- 
-//    cudaMalloc(&d_P,d_M * sizeof(double));
-//    cudaMalloc(&temp_x,d_D * sizeof(double));
+	
+	
+		int		n, m, d;
+		double	ksig, diff, razn, outlier_tmp, sp;
+	  	  
+	  ksig = -2.0 * d_sigma2;
+	  outlier_tmp=(d_outlier*d_M*pow (-ksig*3.14159265358979,0.5*d_D))/((1-d_outlier)*d_N); 
+	 /* printf ("ksig = %lf\n", *sigma2);*/
+	  /* outlier_tmp=*outlier*N/(1- *outlier)/M*(-ksig*3.14159265358979); */
+	  
+	  
+	  for (n=0; n < d_N; n++) {
+	      
+	      sp=0;
+	      for (m=0; m < d_M; m++) {
+	          razn=0;
+	          for (d=0; d < d_D; d++) {
+	             diff= d_X[n+d*d_N]-d_T[m+d*d_M];
+	             diff=diff*diff;
+	             razn+=diff;
+	          }
+	          
+	          d_P[m]=exp(razn/ksig);
+	          sp+=d_P[m];
+	      }
+	      
+	      sp+=outlier_tmp;
+	      d_Pt1[n]=1-outlier_tmp / sp;
+	      
+	      for (d=0; d < d_D; d++) {
+	    	  d_temp_x[d] = d_X[n+d*d_N] / sp;
+//	    	  *(temp_x+d)=*(x+n+d*N)/ sp;
+	      }
+	         
+	      for (m=0; d_M < d_M; d_M++) {
+	         
+	          d_P1[m] += d_P[m] / sp;
+//	    	  *(P1+m)+=*(P+m)/ sp;
+	          
+	          for (d=0; d < d_D; d++) {
+	        	  d_Px[m+d*d_M] += d_temp_x[d] * d_P[m];	          }
+	          
+	      }
+	      
+	   *d_E +=  -log(sp);     
+	  }
+	  *d_E +=d_D*d_N*log(d_sigma2)/2;
+	    
+	 
 
-    
-
-    
-    ksig = -2.0 * d_sigma2;
-
-    outlier_tmp=(d_outlier*d_M*pow(-ksig*3.14159265358979,0.5*d_D))/((1-d_outlier)*d_N); 
-    
-     /* printf ("ksig = %lf\n", *sigma2);*/
-      /* outlier_tmp=*outlier*N/(1- *outlier)/M*(-ksig*3.14159265358979); */
-      
-      
-      for (n=0; n < d_N; n++) {
-          
-          sp=0;
-          for (m=0; m < d_M; m++) {
-              razn=0;
-              for (d=0; d < d_D; d++) {
-                 diff=d_x[n+d*d_N]-d_y[m+d*d_M];  
-                 diff=diff*diff;
-                 razn+=diff;
-              }
-              
-              d_P[m]=exp(razn/ksig);
-              sp+=d_P[m];
-          }
-          
-          sp+=outlier_tmp;
-          d_Pt1[n]=1-outlier_tmp/ sp;
-          
-          for (d=0; d < d_D; d++) {
-           temp_x[d]=d_x[n+d*d_N]/ sp;
-          }
-             
-          for (m=0; m < d_M; m++) {
-             
-              d_P1[m]+=d_P[m]/ sp;
-              
-              for (d=0; d < d_D; d++) {
-              d_Px[m+d*d_M]+= temp_x[d]*d_P[m];
-              }
-              
-          }
-          
-       *d_E +=  -log(sp);     
-      }
-      *d_E +=d_D*d_N*log(d_sigma2)/2;
-        
-      
-//      free((void*)P);
-//      free((void*)temp_x);
-    
+	  return;
+		
 }
+
 
 void cpd_comp(
 		double* x,
@@ -121,8 +103,8 @@ void cpd_comp(
   double	ksig, diff, razn, outlier_tmp, sp;
   double	*P, *temp_x;
   
-//  P = (double*) calloc(M, sizeof(double));
-//  temp_x = (double*) calloc(D, sizeof(double));
+  P = (double*) calloc(M, sizeof(double));
+  temp_x = (double*) calloc(D, sizeof(double));
   
   ksig = -2.0 * *sigma2;
   outlier_tmp=(*outlier*M*pow (-ksig*3.14159265358979,0.5*D))/((1-*outlier)*N); 
@@ -173,29 +155,29 @@ void cpd_comp(
 }
 
 /* Input arguments */
-#define IN_x		prhs[0] //double array
-#define IN_y		prhs[1] //double array
-#define IN_sigma2	prhs[2] //double scalar
-#define IN_outlier	prhs[3] //double scalar
+#define IN_X		prhs[0]
+#define IN_T		prhs[1]
+#define IN_sigma2	prhs[2]
+#define IN_outlier	prhs[3]
 
 
 /* Output arguments */
-#define OUT_P1		plhs[0] //double array
-#define OUT_Pt1		plhs[1] //double array
-#define OUT_Px		plhs[2] //double array
-#define OUT_E		plhs[3] //double scalar
+#define OUT_P1		plhs[0]
+#define OUT_Pt1		plhs[1]
+#define OUT_Px		plhs[2]
+#define OUT_E		plhs[3]
 
 
 /* Gateway routine */
 void mexFunction( int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[] )
 {
-  double *x, *y, *sigma2, *outlier, *P1, *Pt1, *Px, *E;
+  double *x, *t, *sigma2, *outlier, *P1, *Pt1, *Px, *E;
   int     N, M, D;
   
   /* Get the sizes of each input argument */
-  N = mxGetM(IN_x); //Number of rows in array
-  M = mxGetM(IN_y);
-  D = mxGetN(IN_x); //Number of columns in array
+  N = mxGetM(IN_X);
+  M = mxGetM(IN_T);
+  D = mxGetN(IN_X);
   
   /* Create the new arrays and set the output pointers to them */
   OUT_P1     = mxCreateDoubleMatrix(M, 1, mxREAL);
@@ -204,88 +186,91 @@ void mexFunction( int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[] )
   OUT_E       = mxCreateDoubleMatrix(1, 1, mxREAL);
 
     /* Assign pointers to the input arguments */
-  x      = mxGetPr(IN_x);
-  y       = mxGetPr(IN_y);
+  x      = mxGetPr(IN_X);
+  t       = mxGetPr(IN_T);
   sigma2       = mxGetPr(IN_sigma2);
   outlier    = mxGetPr(IN_outlier);
 
  
   
   /* Assign pointers to the output arguments */
-  P1      = mxGetPr(OUT_P1); 
+  P1      = mxGetPr(OUT_P1);
   Pt1      = mxGetPr(OUT_Pt1);
   Px      = mxGetPr(OUT_Px);
   E     = mxGetPr(OUT_E);
    
-  float res[1];
-  res[0] = 0;
-  
-  float* d_res;
-  cudaMalloc(&d_res,1 * sizeof(float));
-  
-  //allocate memory on GPU
-  double* d_x;
-  double* d_y;
-//  double d_sigma2;
-//  double d_outlier;
-  double* d_P1;
-  double* d_Pt1;
-  double* d_Px;
-  double* d_E;
-//  double* d_N;
-//  double* d_M;
-//  double* d_D;
-  double* d_P;
-  double* temp_x;
-  
-  cudaMalloc(&d_x,M * sizeof(double));
-  cudaMalloc(&d_y,N * sizeof(double));
-  cudaMalloc(&d_P1,M * sizeof(double));
-  cudaMalloc(&d_Pt1,N  * sizeof(double));
-  cudaMalloc(&d_Px,M*D * sizeof(double));
-  cudaMalloc(&d_E,1 * sizeof(double));
+  mexPrintf("size of N: %d, M: %d, D: %d", N, M, D);
 
-  cudaMalloc(&d_P,M * sizeof(double));
-  cudaMalloc(&temp_x,D * sizeof(double));
-  
-  cudaMemcpy(d_x, x, M * sizeof(double), cudaMemcpyHostToDevice);
-  cudaMemcpy(d_y, y, N * sizeof(double), cudaMemcpyHostToDevice);
-  cudaMemcpy(d_P1, P1, M * sizeof(double), cudaMemcpyHostToDevice);
-  cudaMemcpy(d_Pt1, Pt1, N * sizeof(double), cudaMemcpyHostToDevice);
-  cudaMemcpy(d_Px, Px, M*D * sizeof(double), cudaMemcpyHostToDevice);
-  cudaMemcpy(d_E, E, 1 * sizeof(double), cudaMemcpyHostToDevice);
-
-  
-//  cudaMemcpy(d_res, res, sizeof(float), cudaMemcpyHostToDevice);
-
-  dim3 block = dim3(128, 8);
-  dim3 grid = dim3((D + block.x - 1) / block.x,
-			(M + block.y - 1) / block.y);
-  
-  magickernel <<<grid, block>>> (d_x, d_y, *sigma2, *outlier, d_P1, d_Pt1, d_Px, d_E, N, M, D, d_P, temp_x);
-  
-//  cudaMemcpy(res, d_res, sizeof(float), cudaMemcpyDeviceToHost);
-  cudaMemcpy(P1, d_P1, M * sizeof(double), cudaMemcpyDeviceToHost);
-  cudaMemcpy(Pt1, d_Pt1, N * sizeof(double), cudaMemcpyDeviceToHost);
-  cudaMemcpy(Px, d_Px, M*D * sizeof(double), cudaMemcpyDeviceToHost);
-  cudaMemcpy(E, d_E, 1 * sizeof(double), cudaMemcpyDeviceToHost);
-  
-  cudaFree(d_x);
-  cudaFree(d_y);
-  cudaFree(d_P1);
-  cudaFree(d_Pt1);
-  cudaFree(d_Px);
-  cudaFree(d_E);
-  cudaFree(d_P);
-  cudaFree(temp_x);
-  
-  mexPrintf("it worked: %f \n",res[0]);
-  
   
   /* Do the actual computations in a subroutine */
-//  cpd_comp(x, y, sigma2, outlier, P1, Pt1, Px, E, N, M, D);
+
+  //cpd_comp(x, t, sigma2, outlier, P1, Pt1, Px, E, N, M, D);
+  
+  //allocate memory on GPU
+   double* d_X;
+   double* d_T;
+   double* d_P1;
+   double* d_Pt1;
+   double* d_Px;
+   double* d_E;
+   double* d_P;
+   double* temp_x;
+   
+   int sizeX = M*D;
+   int sizeT = N*D;
+   
+   cudaMalloc(&d_X, sizeX * sizeof(double));
+   cudaMalloc(&d_T, sizeT * sizeof(double));
+   cudaMalloc(&d_P1, M  * sizeof(double));
+   cudaMalloc(&d_Pt1,N  * sizeof(double));
+   cudaMalloc(&d_Px, sizeX * sizeof(double));
+   cudaMalloc(&d_E,1 * sizeof(double));
+   cudaMalloc(&d_P, M * sizeof(double));
+   cudaMalloc(&temp_x, D * sizeof(double));
+   
+   
+   cudaMemcpy(d_X, x, sizeX * sizeof(double), cudaMemcpyHostToDevice);
+   cudaMemcpy(d_T, t, sizeT * sizeof(double), cudaMemcpyHostToDevice);
+   
+   cudaMemset (&d_P1,0, M  * sizeof(double));
+   cudaMemset(&d_Pt1,0,N  * sizeof(double));
+   cudaMemset(&d_Px,0, sizeX * sizeof(double));
+   cudaMemset(&d_E,0,1 * sizeof(double));
+   cudaMemset(&d_P,0, M * sizeof(double));
+   cudaMemset(&temp_x,0, D * sizeof(double));   
+   
+   //cudaMemcpy(d_P1, P1, M * sizeof(double), cudaMemcpyHostToDevice);
+   //cudaMemcpy(d_Pt1, Pt1, N * sizeof(double), cudaMemcpyHostToDevice);
+   //cudaMemcpy(d_Px, Px, sizeX * sizeof(double), cudaMemcpyHostToDevice);
+   //cudaMemcpy(d_E, E, 1 * sizeof(double), cudaMemcpyHostToDevice);
+  
+   
+   dim3 block = dim3(1, 1, 1);
+   dim3 grid = dim3(1,1,1);
+
+   magickernel <<<grid, block>>> (d_X, d_T, *sigma2, *outlier, d_P1, d_Pt1, d_Px, d_E, N, M, D, d_P, temp_x);
+   
+   cudaMemcpy(P1, d_P1, M * sizeof(double), cudaMemcpyDeviceToHost);
+   cudaMemcpy(Pt1, d_Pt1, N * sizeof(double), cudaMemcpyDeviceToHost);
+   cudaMemcpy(Px, d_Px, sizeX * sizeof(double), cudaMemcpyDeviceToHost);
+   cudaMemcpy(E, d_E, 1 * sizeof(double), cudaMemcpyDeviceToHost);
+   
+  
+   cudaFree(d_X);
+   cudaFree(d_T);
+   cudaFree(d_P1);
+   cudaFree(d_Pt1);
+   cudaFree(d_Px);
+   cudaFree(d_E);
+   cudaFree(d_P);
+   cudaFree(temp_x);
+  
+  
+  
+  
   
   return;
 }
+
 
 
