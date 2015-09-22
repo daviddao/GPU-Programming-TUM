@@ -54,6 +54,14 @@
 
 
 function  [C, W, sigma2, iter, T] =cpd_GRBF(X, Y, beta, lambda, max_it, tol, outliers, sigma2)
+X = linspace(1,25,25);
+X = vec2mat(X,5);
+Y = linspace(26,50,25);
+Y = vec2mat(Y,5);
+%X=3*ones(5);
+%Y=8*ones(5);
+
+
 
 [N, D]=size(X);
 [M, D]=size(Y);
@@ -72,6 +80,11 @@ G = G+G';
 iter=0; 
 ntol=tol+10; 
 L=1;
+
+
+
+
+
 
 while (iter<max_it) && (ntol > tol) && (sigma2 > 1e-8)
 %tic[P1,Pt1, PX, L]=cpd_P(X,T, sigma2 ,outliers);

@@ -39,10 +39,11 @@ __global__ void calc_nominator(double* devPtrX, double* devPtrY, double* devPtrP
             diff=diff*diff; //take the square of the euclidean norm of one scalar -> square the scalar
             razn+=diff; //proposed name: eucl_dist_sqr; add up the differences for each dimension to get the scalar length of the high-dimensional vector
         }
-		devPtrPSlice[x+M*y]=exp(razn/ksig); //nominator
+		devPtrPSlice[y+M*x]=exp(razn/ksig); //nominator
 
 	}
 }
+
 
 
 void cpd_comp(
@@ -102,10 +103,15 @@ void cpd_comp(
 
   
   stat = cublasCreate(&handle);
-  stat = cublasSetMatrix (N, D, sizeof(*x), x, N, devPtrX, N);
-  stat = cublasSetMatrix (M, D, sizeof(*y), y, M, devPtrY, M);
-  stat = cublasSetMatrix (N, D, sizeof(*x), P, N, devPtrPSlice, N);
-//  stat = cublasSetMatrix (M, D, sizeof(*y), y, M, devPtrP1, M);
+  cudaMemcpy(devPtrX,  x, N*D* sizeof(double), cudaMemcpyHostToDevice);  
+  cudaMemcpy(devPtrY,  y, M*D* sizeof(double), cudaMemcpyHostToDevice);  
+//  cudaMemcpy(PSlice, devPtrP,  M*slice_size* sizeof(double), cudaMemcpyDeviceToHost);  
+
+//  stat = cublasSetMatrix (N, D, sizeof(*x), x, N, devPtrX, N);
+//  stat = cublasSetMatrix (M, D, sizeof(*y), y, M, devPtrY, M);
+//  stat = cublasSetMatrix (N, D, sizeof(*x), P, N, devPtrPSlice, N);
+
+  //  stat = cublasSetMatrix (M, D, sizeof(*y), y, M, devPtrP1, M);
 //  stat = cublasSetMatrix (M, D, sizeof(*y), y, M, devPtrPt1, M);
 //  stat = cublasSetMatrix (M, D, sizeof(*y), y, M, devPtrPx, M);
 
@@ -139,7 +145,12 @@ void cpd_comp(
   
   
   
-  
+  for (int i=0; i<5; i++){
+	  for (int j=0; j<5; j++){
+		  mexPrintf ("%f ", PSlice[j + i * M]);
+	  }
+	  mexPrintf ("\n");
+  }
   
   
   
@@ -149,24 +160,33 @@ void cpd_comp(
   
   
   
-  
+  mexPrintf ("Print P[m] in original code: \n");
+
   for (n=0; n < N; n++) {
-      
+	  mexPrintf ("\n");
+
       sp=0;
       for (m=0; m < M; m++) { //iterate through all points (M: width of y)
           razn=0;
           for (d=0; d < D; d++) { //iterate through D dimensions
-             diff=*(x+n+d*N)-*(y+m+d*M);  
+             diff=x[n+d*N] - y[m+d*M];// *(x+n+d*N)-*(y+m+d*M);  
              diff=diff*diff; //take the square of the euclidean norm of one scalar -> square the scalar
              razn+=diff; //proposed name: eucl_dist_sqr; add up the differences for each dimension to get the scalar length of the high-dimensional vector
+
           }
-          
+
+
           P[m]=exp(razn/ksig); //nominator
-          if(n< 2){
+          
+          mexPrintf ("%f ", P[m]);
+//          mexPrintf (" compare %f  \n", PSlice[m + n*M]);
+          
+          
+          if(n<slice_size){
 //        	  mexPrintf ("P(%d, %d): %f , fraction: %f  \n", n, m, P[m], razn/ksig);
 
         	  if (P[m] != PSlice[m + n * M]){
-        		  mexPrintf ("Assertion failed at (%d, %d): %f and %f  \n", n, m, P[m], PSlice[m + n * M]);
+//        		  mexPrintf ("Assertion failed at (%d, %d): %f and %f  \n", n, m, P[m], PSlice[m + n * M]);
         	  }
           }
           sp+=P[m]; //sum in the denominator
@@ -243,6 +263,22 @@ void mexFunction( int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[] )
   sigma2       = mxGetPr(IN_sigma2);
   outlier    = mxGetPr(IN_outlier);
 
+//  mexPrintf ("x: \n");
+//  for (int i=0; i<5; i++){
+//	  for (int j=0; j<5; j++){
+//		  mexPrintf ("%f ", x[j + i * M]);
+//	  }
+//	  mexPrintf ("\n");
+//  }
+//  
+//  mexPrintf ("\n y: \n");
+//  for (int i=0; i<5; i++){
+//	  for (int j=0; j<5; j++){
+//		  mexPrintf ("%f ", y[j + i * N]);
+//	  }
+//	  mexPrintf ("\n");
+//  }
+  
  
   
   /* Assign pointers to the output arguments */
