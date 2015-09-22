@@ -12,6 +12,7 @@
 #include "cublas_v2.h"
 
 #define IDX2C(i,j,ld) (((j)*(ld))+(i)) //modify index for 0-based indexing
+#define IDX(i,j,ld) (((i)*(ld))+(j)) // row based, ld is number of columns
 
 #define	max(A, B)	((A) > (B) ? (A) : (B))
 #define	min(A, B)	((A) < (B) ? (A) : (B))
@@ -26,20 +27,20 @@ static __inline__ void modify (cublasHandle_t handle, float *m, int ldm, int n, 
 
 __global__ void calc_nominator(double* devPtrX, double* devPtrY, double* devPtrPSlice, double ksig, int N, int M, int D, int slice_size){
 	
-	int x = threadIdx.x + blockDim.x * blockIdx.x;
-	int y = threadIdx.y + blockDim.y * blockIdx.y;
+	int i = threadIdx.x + blockDim.x * blockIdx.x;
+	int j = threadIdx.y + blockDim.y * blockIdx.y;
 
-	//d_imgIn[ind_x + ind_y * w + ind_z * w * h] = 0;
-	if (x<M && y < slice_size){
+	if (i < slice_size && j < M){
 		double diff = 0;
 		double razn = 0;
 		for (int d=0; d < D; d++) { //iterate through D dimensions
         	
-            diff=devPtrX[x+d*N] - devPtrY[y+d*M];
+            diff=devPtrX[i+d*N] - devPtrY[j+d*M];
             diff=diff*diff; //take the square of the euclidean norm of one scalar -> square the scalar
             razn+=diff; //proposed name: eucl_dist_sqr; add up the differences for each dimension to get the scalar length of the high-dimensional vector
         }
-		devPtrPSlice[y+M*x]=exp(razn/ksig); //nominator
+        
+		devPtrPSlice[IDX2C(i,j,slice_size)]=exp(razn/ksig); //nominator
 
 	}
 }
@@ -65,7 +66,7 @@ void cpd_comp(
   double	*P, *temp_x;
   double *PSlice;
   double diffXY;
-  int slice_size = 5;
+  int slice_size = 3;
 
   ksig = -2.0 * *sigma2;
   outlier_tmp=(*outlier*M*pow (-ksig*3.14159265358979,0.5*D))/((1-*outlier)*N); 
@@ -120,12 +121,20 @@ void cpd_comp(
 
 
   
-  
-  
+//   
+//    mexPrintf ("TEST \n");
+//   for (int i=0; i<N; i++){
+// 	  for (int j=0; j<M; j++){
+// 		  mexPrintf ("%f ", PSlice[IDX2C(i,j,slice_size)]);
+// 	  }
+// 	  mexPrintf ("\n");
+//   }
+//   	  mexPrintf ("\n");
 
-	dim3 block = dim3(64, 4, 1);
-	dim3 grid = dim3((M + block.x - 1) / block.x,
-			(slice_size + block.y - 1) / block.y);
+
+	dim3 block = dim3(32, 4, 1);
+	dim3 grid = dim3((slice_size + block.x - 1) / block.x,
+			(M + block.y - 1) / block.y);
 
 	calc_nominator <<<grid, block>>> (devPtrX, devPtrY, devPtrPSlice, ksig, N, M, D, slice_size);
   
@@ -145,16 +154,15 @@ void cpd_comp(
   cudaFree(devPtrE);
 
   
-  
-  
-  for (int i=0; i<5; i++){
-	  for (int j=0; j<5; j++){
-		  mexPrintf ("%f ", PSlice[j + i * M]);
-	  }
-	  mexPrintf ("\n");
-  }
-  
-  
+//   
+//   for (int i=0; i<slice_size; i++){
+// 	  for (int j=0; j<M; j++){
+// 		  mexPrintf ("%f ", PSlice[IDX2C(i,j,slice_size)]);
+// 	  }
+// 	  mexPrintf ("\n");
+//   }
+//   
+//   
   
   
   
@@ -165,7 +173,7 @@ void cpd_comp(
   mexPrintf ("Print P[m] in original code: \n");
 
   for (n=0; n < N; n++) {
-	  mexPrintf ("\n");
+	  //mexPrintf ("\n");
 
       sp=0;
       for (m=0; m < M; m++) { //iterate through all points (M: width of y)
@@ -180,14 +188,14 @@ void cpd_comp(
 
           P[m]=exp(razn/ksig); //nominator
           
-          mexPrintf ("%f ", P[m]);
+          //mexPrintf ("%f ", P[m]);
           
           
           if(n<slice_size){
-//        	  mexPrintf ("P(%d, %d): %f , fraction: %f  \n", n, m, P[m], razn/ksig);
+        	  mexPrintf ("P(%d, %d): %f , %f  \n", n, m, P[m],  PSlice[IDX2C(n,m,slice_size)]);
 
-        	  if ((float) P[m] != (float) PSlice[m + n * M]){
-        		  mexPrintf ("Assertion failed at (%d, %d): %f and %f  \n", n, m, P[m], PSlice[m + n * M]);
+        	  if ((float) P[m] != (float) PSlice[IDX2C(n,m,slice_size)]){
+        		  mexPrintf ("Assertion failed at (%d, %d): %f and %f  \n", n, m, P[m], PSlice[IDX2C(n,m,slice_size)]);
         	  }
           }
           sp+=P[m]; //sum in the denominator

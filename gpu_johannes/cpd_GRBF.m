@@ -54,10 +54,10 @@
 
 
 function  [C, W, sigma2, iter, T] =cpd_GRBF(X, Y, beta, lambda, max_it, tol, outliers, sigma2)
-X = linspace(1,25,25);
-X = vec2mat(X,5);
-Y = linspace(26,50,25);
-Y = vec2mat(Y,5);
+% X = linspace(1,25,25);
+% X = vec2mat(X,5);
+% Y = linspace(26,50,25);
+% Y = vec2mat(Y,5);
 
 
 
