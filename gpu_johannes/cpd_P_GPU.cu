@@ -65,7 +65,7 @@ void cpd_comp(
   double	*P, *temp_x;
   double *PSlice;
   double diffXY;
-  int slice_size = 50;
+  int slice_size = 5;
 
   ksig = -2.0 * *sigma2;
   outlier_tmp=(*outlier*M*pow (-ksig*3.14159265358979,0.5*D))/((1-*outlier)*N); 
@@ -91,21 +91,23 @@ void cpd_comp(
   double* devPtrPt1;
   double* devPtrPx;
   double* devPtrE;
+  for (int i=0; i<M*slice_size; i++){
+	  PSlice[i] = -1;
+  }
   
-  
-  cudaStat = cudaMalloc ((void**)&devPtrX, N*D*sizeof(double));
-  cudaStat = cudaMalloc ((void**)&devPtrY, M*D*sizeof(double));
-  cudaStat = cudaMalloc ((void**)&devPtrPSlice, M*slice_size*sizeof(double));
-  cudaStat = cudaMalloc ((void**)&devPtrP1, N*sizeof(double));
-  cudaStat = cudaMalloc ((void**)&devPtrPt1, M*sizeof(double));
-  cudaStat = cudaMalloc ((void**)&devPtrPx, M*D*sizeof(double));
-  cudaStat = cudaMalloc ((void**)&devPtrE, M*D*sizeof(double));
+  cudaStat = cudaMalloc (&devPtrX, N*D*sizeof(double));
+  cudaStat = cudaMalloc (&devPtrY, M*D*sizeof(double));
+  cudaStat = cudaMalloc (&devPtrPSlice, M*slice_size*sizeof(double));
+  cudaStat = cudaMalloc (&devPtrP1, N*sizeof(double));
+  cudaStat = cudaMalloc (&devPtrPt1, M*sizeof(double));
+  cudaStat = cudaMalloc (&devPtrPx, M*D*sizeof(double));
+  cudaStat = cudaMalloc (&devPtrE, M*D*sizeof(double));
 
   
   stat = cublasCreate(&handle);
   cudaMemcpy(devPtrX,  x, N*D* sizeof(double), cudaMemcpyHostToDevice);  
   cudaMemcpy(devPtrY,  y, M*D* sizeof(double), cudaMemcpyHostToDevice);  
-//  cudaMemcpy(PSlice, devPtrP,  M*slice_size* sizeof(double), cudaMemcpyDeviceToHost);  
+  cudaMemcpy(devPtrPSlice,PSlice,  M*slice_size* sizeof(double), cudaMemcpyHostToDevice);  
 
 //  stat = cublasSetMatrix (N, D, sizeof(*x), x, N, devPtrX, N);
 //  stat = cublasSetMatrix (M, D, sizeof(*y), y, M, devPtrY, M);
@@ -179,14 +181,13 @@ void cpd_comp(
           P[m]=exp(razn/ksig); //nominator
           
           mexPrintf ("%f ", P[m]);
-//          mexPrintf (" compare %f  \n", PSlice[m + n*M]);
           
           
           if(n<slice_size){
 //        	  mexPrintf ("P(%d, %d): %f , fraction: %f  \n", n, m, P[m], razn/ksig);
 
-        	  if (P[m] != PSlice[m + n * M]){
-//        		  mexPrintf ("Assertion failed at (%d, %d): %f and %f  \n", n, m, P[m], PSlice[m + n * M]);
+        	  if ((float) P[m] != (float) PSlice[m + n * M]){
+        		  mexPrintf ("Assertion failed at (%d, %d): %f and %f  \n", n, m, P[m], PSlice[m + n * M]);
         	  }
           }
           sp+=P[m]; //sum in the denominator
