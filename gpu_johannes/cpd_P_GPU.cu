@@ -1,35 +1,63 @@
 /**
- * Emanuele Rodola
+ * Johannes and David
  * TU Munich
- * Jun 2015
+ * Sep 2015
  */
 #include <stdio.h>
 #include "mex.h"
 #include <iostream>
 #include <vector>
 #include <cmath>
+#include <ctime>
 #include <cuda_runtime.h>
 #include "cublas_v2.h"
+#include "time.h"
 
 #define IDX2C(i,j,ld) (((j)*(ld))+(i)) //modify index for 0-based indexing
-#define IDX(i,j,ld) (((i)*(ld))+(j)) // row based, ld is number of columns
 
 #define	max(A, B)	((A) > (B) ? (A) : (B))
 #define	min(A, B)	((A) < (B) ? (A) : (B))
 
-static __inline__ void modify (cublasHandle_t handle, float *m, int ldm, int n, int p, int q, float alpha, float beta){
-    cublasSscal (handle, n-p, &alpha, &m[IDX2C(p,q,ldm)], ldm);
-    cublasSscal (handle, ldm-p, &beta, &m[IDX2C(p,q,ldm)], 1);
-}
+// measuring time 
+class Timer
+{
+    public:
+	Timer() : tStart(0), running(false), sec(0.f)
+	{
+	}
+	void start()
+	{
+		tStart = clock();
+		running = true;
+	}
+	void end()
+	{
+		if (!running) { sec = 0; return; }
+        cudaDeviceSynchronize();
+		clock_t tEnd = clock();
+		sec = (float)(tEnd - tStart) / CLOCKS_PER_SEC;
+		running = false;
+	}
+	float get()
+	{
+		if (running) end();
+		return sec;
+	}
+    private:
+	clock_t tStart;
+	bool running;
+	float sec;
+};
 
 
-
-
-__global__ void calc_nominator(double* devPtrX, double* devPtrY, double* devPtrPSlice, double ksig, int N, int M, int D, int slice_size){
+// Kernel calculating the nominators of each entry of P (for 6980 x 6980 it takes 160ms)
+__global__ 
+void calc_nominator(double* devPtrX, double* devPtrY, double* devPtrPSlice, double ksig, int N, int M, int D, int slice_size){
 	
 	int i = threadIdx.x + blockDim.x * blockIdx.x;
 	int j = threadIdx.y + blockDim.y * blockIdx.y;
-
+    
+    // TODO: include starting and ending index of slice
 	if (i < slice_size && j < M){
 		double diff = 0;
 		double razn = 0;
@@ -39,12 +67,10 @@ __global__ void calc_nominator(double* devPtrX, double* devPtrY, double* devPtrP
             diff=diff*diff; //take the square of the euclidean norm of one scalar -> square the scalar
             razn+=diff; //proposed name: eucl_dist_sqr; add up the differences for each dimension to get the scalar length of the high-dimensional vector
         }
-        
+        // Set it using a row-major -> column major translator (for CUBLAS and MATLAB)
 		devPtrPSlice[IDX2C(i,j,slice_size)]=exp(razn/ksig); //nominator
-
 	}
 }
-
 
 
 void cpd_comp(
@@ -66,25 +92,23 @@ void cpd_comp(
   double	*P, *temp_x;
   double *PSlice;
   double diffXY;
-  int slice_size = 3;
+  int slice_size = 6890;
 
   ksig = -2.0 * *sigma2;
   outlier_tmp=(*outlier*M*pow (-ksig*3.14159265358979,0.5*D))/((1-*outlier)*N); 
  /* printf ("ksig = %lf\n", *sigma2);*/
   /* outlier_tmp=*outlier*N/(1- *outlier)/M*(-ksig*3.14159265358979); */
   
+  
   P = (double*) calloc(M, sizeof(double));
   temp_x = (double*) calloc(D, sizeof(double));
   PSlice = (double*) calloc(slice_size*M, sizeof(double));
 
-  
-  
-  
-  
-  
+  // CUBLAS Stuff
   cudaError_t cudaStat;    
   cublasStatus_t stat;
   cublasHandle_t handle;
+  
   double* devPtrX;
   double* devPtrY;
   double* devPtrPSlice; 
@@ -92,10 +116,19 @@ void cpd_comp(
   double* devPtrPt1;
   double* devPtrPx;
   double* devPtrE;
+  
+  // We need that to calculate P1
+  double* devPtrOnes;
+  cudaMalloc(&devPtrOnes, M * sizeof(double));
+  //TODO: Finish Matrix Vector Multiplication
+  
+  
+  // Just for marking entries (stay -1 if they are unedited by the kernel)
   for (int i=0; i<M*slice_size; i++){
 	  PSlice[i] = -1;
   }
   
+  // Allocate memory on the device
   cudaStat = cudaMalloc (&devPtrX, N*D*sizeof(double));
   cudaStat = cudaMalloc (&devPtrY, M*D*sizeof(double));
   cudaStat = cudaMalloc (&devPtrPSlice, M*slice_size*sizeof(double));
@@ -104,8 +137,9 @@ void cpd_comp(
   cudaStat = cudaMalloc (&devPtrPx, M*D*sizeof(double));
   cudaStat = cudaMalloc (&devPtrE, M*D*sizeof(double));
 
-  
+  // Create CUBLAS Context
   stat = cublasCreate(&handle);
+  // TODO: Load data in the beginning instead of every time!
   cudaMemcpy(devPtrX,  x, N*D* sizeof(double), cudaMemcpyHostToDevice);  
   cudaMemcpy(devPtrY,  y, M*D* sizeof(double), cudaMemcpyHostToDevice);  
   cudaMemcpy(devPtrPSlice,PSlice,  M*slice_size* sizeof(double), cudaMemcpyHostToDevice);  
@@ -114,37 +148,22 @@ void cpd_comp(
 //  stat = cublasSetMatrix (M, D, sizeof(*y), y, M, devPtrY, M);
 //  stat = cublasSetMatrix (N, D, sizeof(*x), P, N, devPtrPSlice, N);
 
-  //  stat = cublasSetMatrix (M, D, sizeof(*y), y, M, devPtrP1, M);
+//  stat = cublasSetMatrix (M, D, sizeof(*y), y, M, devPtrP1, M);
 //  stat = cublasSetMatrix (M, D, sizeof(*y), y, M, devPtrPt1, M);
 //  stat = cublasSetMatrix (M, D, sizeof(*y), y, M, devPtrPx, M);
 
-
-
-  
-//   
-//    mexPrintf ("TEST \n");
-//   for (int i=0; i<N; i++){
-// 	  for (int j=0; j<M; j++){
-// 		  mexPrintf ("%f ", PSlice[IDX2C(i,j,slice_size)]);
-// 	  }
-// 	  mexPrintf ("\n");
-//   }
-//   	  mexPrintf ("\n");
-
-
-	dim3 block = dim3(32, 4, 1);
-	dim3 grid = dim3((slice_size + block.x - 1) / block.x,
+  dim3 block = dim3(4, 32, 1);
+  dim3 grid = dim3((slice_size + block.x - 1) / block.x,
 			(M + block.y - 1) / block.y);
-
-	calc_nominator <<<grid, block>>> (devPtrX, devPtrY, devPtrPSlice, ksig, N, M, D, slice_size);
-  
+	
+  Timer timer; timer.start();
+  calc_nominator <<<grid, block>>> (devPtrX, devPtrY, devPtrPSlice, ksig, N, M, D, slice_size);
+  timer.end();  float t = timer.get();  // elapsed time in seconds	
+  mexPrintf("\n GPU Time: %f ms \n",t * 1000);
+    
   cudaMemcpy(PSlice, devPtrPSlice,  M*slice_size* sizeof(double), cudaMemcpyDeviceToHost);  
   
-  
- 
-
-  
-  
+  // Free Device Space, so MATLAB doesnt crash
   cudaFree(devPtrX);
   cudaFree(devPtrY);
   cudaFree(devPtrPSlice);
@@ -152,28 +171,11 @@ void cpd_comp(
   cudaFree(devPtrPt1);
   cudaFree(devPtrPx);
   cudaFree(devPtrE);
-
   
-//   
-//   for (int i=0; i<slice_size; i++){
-// 	  for (int j=0; j<M; j++){
-// 		  mexPrintf ("%f ", PSlice[IDX2C(i,j,slice_size)]);
-// 	  }
-// 	  mexPrintf ("\n");
-//   }
-//   
-//   
-  
-  
-  
-
-  
-  
-  
-  mexPrintf ("Print P[m] in original code: \n");
+  //mexPrintf ("Print P[m] in original code: \n");
 
   for (n=0; n < N; n++) {
-	  //mexPrintf ("\n");
+	  //mexPrintf ("\n"); // use for printing P[m]
 
       sp=0;
       for (m=0; m < M; m++) { //iterate through all points (M: width of y)
@@ -182,17 +184,15 @@ void cpd_comp(
              diff=x[n+d*N] - y[m+d*M];// *(x+n+d*N)-*(y+m+d*M);  
              diff=diff*diff; //take the square of the euclidean norm of one scalar -> square the scalar
              razn+=diff; //proposed name: eucl_dist_sqr; add up the differences for each dimension to get the scalar length of the high-dimensional vector
-
           }
-
 
           P[m]=exp(razn/ksig); //nominator
           
-          //mexPrintf ("%f ", P[m]);
+          //mexPrintf ("%f ", P[m]); // use for printing P[m]
           
-          
+          // Check if P[m] CPU is the same as P_slice[m] from GPU
           if(n<slice_size){
-        	  mexPrintf ("P(%d, %d): %f , %f  \n", n, m, P[m],  PSlice[IDX2C(n,m,slice_size)]);
+        	  //mexPrintf ("P(%d, %d): %f , %f  \n", n, m, P[m],  PSlice[IDX2C(n,m,slice_size)]);
 
         	  if ((float) P[m] != (float) PSlice[IDX2C(n,m,slice_size)]){
         		  mexPrintf ("Assertion failed at (%d, %d): %f and %f  \n", n, m, P[m], PSlice[IDX2C(n,m,slice_size)]);
@@ -263,32 +263,14 @@ void mexFunction( int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[] )
   /* Create the new arrays and set the output pointers to them */
   OUT_P1     = mxCreateDoubleMatrix(M, 1, mxREAL);
   OUT_Pt1    = mxCreateDoubleMatrix(N, 1, mxREAL);
-  OUT_Px    = mxCreateDoubleMatrix(M, D, mxREAL);
-  OUT_E       = mxCreateDoubleMatrix(1, 1, mxREAL);
+  OUT_Px     = mxCreateDoubleMatrix(M, D, mxREAL);
+  OUT_E      = mxCreateDoubleMatrix(1, 1, mxREAL);
 
     /* Assign pointers to the input arguments */
   x      = mxGetPr(IN_x);
   y       = mxGetPr(IN_y);
   sigma2       = mxGetPr(IN_sigma2);
   outlier    = mxGetPr(IN_outlier);
-
-//  mexPrintf ("x: \n");
-//  for (int i=0; i<5; i++){
-//	  for (int j=0; j<5; j++){
-//		  mexPrintf ("%f ", x[j + i * M]);
-//	  }
-//	  mexPrintf ("\n");
-//  }
-//  
-//  mexPrintf ("\n y: \n");
-//  for (int i=0; i<5; i++){
-//	  for (int j=0; j<5; j++){
-//		  mexPrintf ("%f ", y[j + i * N]);
-//	  }
-//	  mexPrintf ("\n");
-//  }
-  
- 
   
   /* Assign pointers to the output arguments */
   P1      = mxGetPr(OUT_P1);
