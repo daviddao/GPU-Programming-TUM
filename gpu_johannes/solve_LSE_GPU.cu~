@@ -27,11 +27,17 @@ void cuda_check(string file, int line)
     {
         cout << endl << file << ", line " << line << ": " << cudaGetErrorString(e) << " (" << e << ")" << endl;
         if (prev_line>0) cout << "Previous CUDA call:" << endl << prev_file << ", line " << prev_line << endl;
-        exit(1);
+        //system("PAUSE");
     }
     prev_file = file;
     prev_line = line;
 }
+
+
+
+
+
+
 
 
 /* Input arguments */
@@ -53,82 +59,58 @@ void mexFunction( int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[] )
   
   /* Create the new arrays and set the output pointers to them */
   //OUT_X     = mxCreateDoubleMatrix(N, D, mxREAL);
-    //OUT_X     = mxCreateDoubleMatrix(N, N, mxREAL);
-    OUT_X = matrix_A;
+  OUT_X     = mxCreateDoubleMatrix(N, N, mxREAL);
+
 
     /* Assign pointers to the input arguments */
   matrix_A      = mxGetPr(IN_A);
   matrix_B      = mxGetPr(IN_B);
   
   /* Assign pointers to the output arguments */
-  //matrix_X      = mxGetPr(OUT_X);
+  matrix_X      = mxGetPr(OUT_X);
   
   /* Do the actual computations in a subroutine */
     //allocate memory on GPU
-    double* d_matrix_A;
-    double* d_matrix_B;
-    double* d_matrix_X;
-    double* d_matrix_L;
-    double* d_matrix_U;
-    double* d_Aarray[1];
+    double** Aarray = (double**)malloc(sizeof(double*));;
     int* d_infoArray;
-
-    d_Aarray[0] = matrix_A;
+    int *infoArray = (int*)malloc(sizeof(int));
+    
     cublasStatus_t status;
     cublasHandle_t handle;
     status = cublasCreate(&handle);
     if (status != CUBLAS_STATUS_SUCCESS) 
     {
-        printf("error %i\n",status);
+        printf("error1 %i\n",status);
         return;
     }
 
-    cudaMalloc(&d_matrix_A, N * N * sizeof(double)); CUDA_CHECK;
-    cudaMalloc(&d_matrix_L, N * N * sizeof(double)); CUDA_CHECK;
-    cudaMalloc(&d_matrix_U, N * N * sizeof(double)); CUDA_CHECK;
-    cudaMalloc(&d_matrix_B, N * D * sizeof(double)); CUDA_CHECK;
-    cudaMalloc(&d_matrix_X, N * D * sizeof(double)); CUDA_CHECK;
+    cudaMalloc((void**)&Aarray[0], N * N * sizeof(double)); CUDA_CHECK;
+    cudaMemcpy(Aarray[0], matrix_A, N * N * sizeof(double), cudaMemcpyHostToDevice); CUDA_CHECK;
+    
+    double** d_Aarray;
+    cudaMalloc(&d_Aarray, sizeof(double*));
+    cudaMemcpy(d_Aarray, Aarray, sizeof(double*), cudaMemcpyHostToDevice); CUDA_CHECK;
+
+    //cudaMalloc(&d_matrix_X, N * N * sizeof(double)); CUDA_CHECK;
     cudaMalloc(&d_infoArray, N * N * sizeof(int)); CUDA_CHECK;   
 
-    //cudaMemcpy(d_matrix_A, matrix_A, N * N * sizeof(double), cudaMemcpyHostToDevice); CUDA_CHECK;
-    //cudaMemcpy(d_matrix_B, matrix_B, N * D * sizeof(double), cudaMemcpyHostToDevice); CUDA_CHECK;
-
-    for(int i=0;i<N;i++)
-    {
-        for( int j=0;j<N;j++)
-        {
-            printf("%f ", matrix_A[i]);
-        }
-    printf("\n");
-    }
 
 
-    status = cublasDgetrfBatched(handle,
-                               N, 
-                               d_Aarray,
-                               N, 
-                               NULL,
-                               d_infoArray,
-                               1);
+    status = cublasDgetrfBatched(handle, N, d_Aarray, N, NULL, d_infoArray, 1);
     if (status != CUBLAS_STATUS_SUCCESS) 
     {
-        printf("error %i\n",status);
+        printf("error2 %i\n",status);
         return;
     }
 
-
-    for(int i=0;i<N*N;i++)
-        printf("%f ", matrix_A[i]);
-
-    //cudaMemcpy(matrix_X, d_matrix_A, N * N * sizeof(double), cudaMemcpyDeviceToHost);  CUDA_CHECK;
+    cudaMemcpy(matrix_X, Aarray[0], N * N * sizeof(double), cudaMemcpyDeviceToHost);  CUDA_CHECK;
+    cudaMemcpy(infoArray, d_infoArray, sizeof(int), cudaMemcpyDeviceToHost);  CUDA_CHECK;    
+    
+    //printf("%d ", infoArray[0]);
 
     cublasDestroy(handle);
-    cudaFree(d_matrix_A);
-    cudaFree(d_matrix_L);
-    cudaFree(d_matrix_U);
-    cudaFree(d_matrix_B);
-    cudaFree(d_matrix_X);
-
+    free(Aarray);
+    free(infoArray);
   return;
 }
 

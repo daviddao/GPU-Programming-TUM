@@ -4,7 +4,7 @@ close all
 clc
 
 magicCUDA('cpd_P_GPU')
-
+magicCUDA('solve_LSE_GPU')
 k = 30;
 
 load('./tr_reg_079.mat');

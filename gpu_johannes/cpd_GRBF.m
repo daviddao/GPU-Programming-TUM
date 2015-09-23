@@ -99,6 +99,7 @@ while (iter<max_it) && (ntol > tol) && (sigma2 > 1e-8)
 %     size(vector_B)
      tic
     %W = solve_LSE_GPU(matrix_A, vector_B);
+    solve_LSE_GPU(matrix_A, vector_B);
     W = matrix_A \ vector_B;
     disp('linear system stuff: ') 
     toc

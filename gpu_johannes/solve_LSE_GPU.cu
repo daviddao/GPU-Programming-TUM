@@ -27,11 +27,17 @@ void cuda_check(string file, int line)
     {
         cout << endl << file << ", line " << line << ": " << cudaGetErrorString(e) << " (" << e << ")" << endl;
         if (prev_line>0) cout << "Previous CUDA call:" << endl << prev_file << ", line " << prev_line << endl;
-        exit(1);
+        //system("PAUSE");
     }
     prev_file = file;
     prev_line = line;
 }
+
+
+
+
+
+
 
 
 /* Input arguments */
@@ -53,7 +59,7 @@ void mexFunction( int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[] )
   
   /* Create the new arrays and set the output pointers to them */
   //OUT_X     = mxCreateDoubleMatrix(N, D, mxREAL);
-    OUT_X     = mxCreateDoubleMatrix(N, N, mxREAL);
+  OUT_X     = mxCreateDoubleMatrix(N, N, mxREAL);
 
 
     /* Assign pointers to the input arguments */
@@ -65,66 +71,54 @@ void mexFunction( int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[] )
   
   /* Do the actual computations in a subroutine */
     //allocate memory on GPU
-    double* d_matrix_A;
-    double* d_matrix_X;
-    double *d_Aarray = new double[1];
-    double **dd_Aarray;
-    dd_Aarray = (double**)malloc(sizeof(double*));
+    double** Aarray = (double**)malloc(sizeof(double*));;
     int* d_infoArray;
-    
+    int *infoArray = (int*)malloc(sizeof(int));
     
     cublasStatus_t status;
     cublasHandle_t handle;
     status = cublasCreate(&handle);
     if (status != CUBLAS_STATUS_SUCCESS) 
     {
-        printf("error1 %i\n",status);
-        return;
+        printf("error for create the handle %i\n",status);
+        goto ENDING;
+        //return;
     }
 
-    cudaMalloc((void**)&dd_Aarray[0], N*N*sizeof(double)); CUDA_CHECK;
-    cudaMemcpy(dd_Aarray[0], matrix_A, N * N * sizeof(double), cudaMemcpyHostToDevice); CUDA_CHECK;
+    cudaMalloc((void**)&Aarray[0], N * N * sizeof(double)); CUDA_CHECK;
+    cudaMemcpy(Aarray[0], matrix_A, N * N * sizeof(double), cudaMemcpyHostToDevice); CUDA_CHECK;
     
-    //cudaMalloc(&d_matrix_A, N * N * sizeof(double)); CUDA_CHECK;
-   // d_Aarray = d_matrix_A;
+    double** d_Aarray;
+    cudaMalloc(&d_Aarray, sizeof(double*));
+    cudaMemcpy(d_Aarray, Aarray, sizeof(double*), cudaMemcpyHostToDevice); CUDA_CHECK;
 
-    cudaMalloc(&d_matrix_X, N * N * sizeof(double)); CUDA_CHECK;
+    //cudaMalloc(&d_matrix_X, N * N * sizeof(double)); CUDA_CHECK;
     cudaMalloc(&d_infoArray, N * N * sizeof(int)); CUDA_CHECK;   
-   
 
-    //cudaMemcpy(d_matrix_A, matrix_A, N * N * sizeof(double), cudaMemcpyHostToDevice); CUDA_CHECK;
-    //cudaMemcpy(dd_Aarray, d_Aarray, sizeof(double*), cudaMemcpyDeviceToDevice); CUDA_CHECK;
 
-   /* for(int i=0;i<N;i++)
-    {
-        for( int j=0;j<N;j++)
-        {
-            printf("%.2f ", matrix_A[i*N + j]);
-        }
-    printf("\n");
-    }*/
 
-    status = cublasDgetrfBatched(handle,
-                               N, 
-                               dd_Aarray,
-                               N, 
-                               NULL,
-                               d_infoArray,
-                               1);
+    status = cublasDgetrfBatched(handle, N, d_Aarray, N, NULL, d_infoArray, 1);
     if (status != CUBLAS_STATUS_SUCCESS) 
     {
-        printf("error2 %i\n",status);
-        return;
+        printf("error for Batched fun %i\n",status);
+        goto ENDING;
+        //return;
     }
 
-    cudaMemcpy(matrix_X, dd_Aarray[0], N * sizeof(double), cudaMemcpyDeviceToHost);  CUDA_CHECK;
-
-    cublasDestroy(handle);
-    cudaFree(d_matrix_A);
-    cudaFree(d_matrix_X);
-    delete[] d_Aarray;
-    free(dd_Aarray);
+    cudaMemcpy(matrix_X, Aarray[0], N * N * sizeof(double), cudaMemcpyDeviceToHost);  CUDA_CHECK;
+    cudaMemcpy(infoArray, d_infoArray, sizeof(int), cudaMemcpyDeviceToHost);  CUDA_CHECK;    
     
+    printf("LU decomposition status (0 - successsful): %d", infoArray[0]);
+
+ENDING:
+    status = cublasDestroy(handle);
+    if (status != CUBLAS_STATUS_SUCCESS) 
+    {
+        printf("error for destroy the handle %i\n",status);
+        //return;
+    }
+    free(Aarray);
+    free(infoArray);
   return;
 }
 
