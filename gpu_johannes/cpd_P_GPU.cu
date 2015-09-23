@@ -88,7 +88,14 @@ class Timer
 	float sec;
 };
 
-
+__global__
+void calc_Pt1(double* d_Pt1, double* d_sp, double outlier_tmp, int N) {
+    int idx = threadIdx.x + blockDim.x * blockIdx.x;
+    
+    if (idx < N) {
+        d_Pt1[idx] = 1.0f - (outlier_tmp/(d_sp[idx] + outlier_tmp));
+    }
+}
 
 
 // Kernel calculating the nominators of each entry of P (for 6980 x 6980 it takes 160ms)
@@ -99,7 +106,6 @@ void calc_nominator(double* d_X, double* d_Y, double* d_PSlice, double ksig, int
 	int j = threadIdx.y + blockDim.y * blockIdx.y;
     
 	int i = idx + (slice_size*slice_nr);
-    // TODO: include starting and ending index of slice
 	if (idx < slice_size && i<N && j < M){
 		
 		
@@ -139,18 +145,15 @@ void cpd_comp(
   int slice_size = 100;
   double *ones;
   double *filler;
-  double *outlier_SliceVec;
   
   P = (double*) calloc(M, sizeof(double));
   temp_x = (double*) calloc(D, sizeof(double));
   PSlice = (double*) calloc(slice_size*M, sizeof(double));
   ones = (double*) calloc(M, sizeof(double));
-  outlier_SliceVec = (double*) calloc(slice_size, sizeof(double));
   filler = (double*) calloc(N,sizeof(double));
   ksig = -2.0 * *sigma2;
   outlier_tmp=(*outlier*M*pow (-ksig*3.14159265358979,0.5*D))/((1-*outlier)*N); 
   fillvector(ones, M, 1);
-  fillvector(outlier_SliceVec, slice_size, outlier_tmp);
   fillvector(filler,N,0);
   
  /* printf ("ksig = %lf\n", *sigma2);*/
@@ -191,8 +194,6 @@ void cpd_comp(
   cudaMalloc (&d_Px, M*D*sizeof(double));
   cudaMalloc (&d_E, M*D*sizeof(double));
   cudaMalloc (&d_ones, M * sizeof(double));
-  cudaMalloc (&d_sliceVec, slice_size*sizeof(double));
-  cudaMalloc (&d_sliceVec2, slice_size*sizeof(double));
   cudaMalloc (&d_sp, N*sizeof(double));
 
   cudaCheckErrors("cuda malloc fail");
@@ -204,7 +205,6 @@ void cpd_comp(
   cudaMemcpy(d_X,  x, N*D* sizeof(double), cudaMemcpyHostToDevice);  
   cudaMemcpy(d_Y,  y, M*D* sizeof(double), cudaMemcpyHostToDevice);  
   cudaMemcpy(d_ones,  ones, M*sizeof(double), cudaMemcpyHostToDevice);  
-  cudaMemcpy(d_sliceVec2,  outlier_SliceVec, slice_size*sizeof(double), cudaMemcpyHostToDevice);  
   cudaMemcpy(d_sp,  filler, N*sizeof(double), cudaMemcpyHostToDevice);  
 
   int numSlices = N/slice_size;
@@ -231,19 +231,15 @@ void cpd_comp(
 	   int rowsA = slice_size;
 	   int columnsA = M;
 	   
-	   cublasCheckErrors(cublasDgemv(handle, CUBLAS_OP_N, rowsA, columnsA, &alpha, d_PSlice, slice_size, d_ones, 1, &beta, d_sliceVec, 1));
+	   cublasCheckErrors(cublasDgemv(handle, CUBLAS_OP_N, rowsA, columnsA, &alpha, d_PSlice, slice_size, d_ones, 1, &beta, d_sp+(s*slice_size), 1));
 	   //d_sliceVec now contains the sum in the nominator 
-	   //now, we add outlier_tmp to all rows
-	   alpha = 1;
-	   beta = 1;
-	   cublasCheckErrors(cublasDgeam(handle, CUBLAS_OP_N, CUBLAS_OP_N, slice_size, 1,
-	                             &alpha, d_sliceVec, slice_size, &beta,
-	                             d_sliceVec2, slice_size,
-	                             d_sp+(s*slice_size), slice_size));
 	   
   }
-  cudaMemcpy(slice_tmp, d_sp, N* sizeof(double), cudaMemcpyDeviceToHost);  
   
+  block = dim3(256, 1, 1);
+  grid = dim3((N + block.x - 1) / block.x,1);
+  calc_Pt1  <<<grid, block>>> (d_sp, d_sp, outlier_tmp, N);
+  cudaMemcpy(Pt1, d_sp, N* sizeof(double), cudaMemcpyDeviceToHost);  
  
 
   // Free Device Space, so MATLAB doesnt crash
@@ -255,8 +251,6 @@ void cpd_comp(
   cudaFree(d_Px);
   cudaFree(d_E);
   cudaFree(d_ones);
-  cudaFree(d_sliceVec);
-  cudaFree(d_sliceVec2);
   cudaFree(d_sp);
 
   timer.end();  float t = timer.get();  // elapsed time in seconds	
@@ -279,14 +273,16 @@ void cpd_comp(
           sp+=P[m]; //sum in the denominator
       }
       
+      
       sp+=outlier_tmp; //for this particular x point, we calculate the complete denominator
-      if((float)slice_tmp[n] != (float) sp){
-    	  
-        	  mexPrintf("Assertion failed! %d - sp on GPU/CPU: %f - %f \n",n, slice_tmp[n], sp);
-//          mexPrintf("sp on CPU: %f \n",sp);
-      }
-
-      Pt1[n]=1-outlier_tmp/ sp; //see documentation: (1 - ca)
+      
+      // Test out if everything works with Pt1 from GPU
+      //Pt1[n] = 1-outlier_tmp/ sp; //see documentation: (1 - ca)
+//       if((float)slice_tmp[n] != (float)Pt1[n]){
+//     	  
+//         	  mexPrintf("Assertion failed! %d - Pt1[n] on GPU/CPU: %f - %f \n",n, slice_tmp[n],  Pt1[n]);
+// //          mexPrintf("sp on CPU: %f \n",sp);
+//       }
       
       for (d=0; d < D; d++) {
        temp_x[d]=x[n+d*N]/ sp;
@@ -313,7 +309,7 @@ void cpd_comp(
   free((void*)ones);
   free((void*)filler);
   free((void*)slice_tmp);
-  free((void*)outlier_SliceVec);
+//   free((void*)outlier_SliceVec);
   return;
 }
 
