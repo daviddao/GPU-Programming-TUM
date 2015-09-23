@@ -39,8 +39,8 @@ void mexFunction( int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[] )
 	const int D = mxGetN(IN_B);
 	
 	/* Create the new arrays and set the output pointers to them */
-	//OUT_X     = mxCreateDoubleMatrix(N, D, mxREAL);
-	OUT_X     = mxCreateDoubleMatrix(N, N, mxREAL);
+	OUT_X     = mxCreateDoubleMatrix(N, D, mxREAL);
+	//OUT_X     = mxCreateDoubleMatrix(N, N, mxREAL);
 	
 	
 	/* Assign pointers to the input arguments */
@@ -51,8 +51,8 @@ void mexFunction( int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[] )
 	XC      = mxGetPr(OUT_X);
 	
 	
-	
-    cudsHandle_t cudenseH = NULL;
+	//cudsHandle_t cudenseH = NULL;
+	cusolverDnHandle_t cudenseH = NULL;
     cublasHandle_t cublasH = NULL;
     cublasStatus_t cublas_status = CUBLAS_STATUS_SUCCESS;
     cusolverStatus_t cusolver_status = CUSOLVER_STATUS_SUCCESS;    
@@ -97,7 +97,7 @@ void mexFunction( int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[] )
     printf("=====\n");*/
 
 // step 1: create cudense/cublas handle
-    cusolver_status = cudsCreate(&cudenseH);
+    cusolver_status = cusolverDnCreate(&cudenseH);
     assert(CUSOLVER_STATUS_SUCCESS == cusolver_status);
 
     cublas_status = cublasCreate(&cublasH);
@@ -119,7 +119,7 @@ void mexFunction( int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[] )
     assert(cudaSuccess == cudaStat2);
  
 // step 3: query working space of geqrf and ormqr
-    cusolver_status = cudsDgeqrf_bufferSize(
+    cusolver_status = cusolverDnDgeqrf_bufferSize(
         cudenseH, 
         N, 
         N, 
@@ -132,7 +132,7 @@ void mexFunction( int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[] )
     assert(cudaSuccess == cudaStat1);
 
 // step 4: compute QR factorization
-    cusolver_status = cudsDgeqrf(
+    cusolver_status = cusolverDnDgeqrf(
         cudenseH, 
         N, 
         N, 
@@ -154,7 +154,7 @@ void mexFunction( int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[] )
     assert(0 == info_gpu);
 
 // step 5: compute Q^T*B
-    cusolver_status= cudsDormqr(
+    cusolver_status= cusolverDnDormqr(
         cudenseH, 
         CUBLAS_SIDE_LEFT, 
         CUBLAS_OP_T,
@@ -214,7 +214,7 @@ void mexFunction( int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[] )
 
 
     if (cublasH ) cublasDestroy(cublasH);   
-    if (cudenseH) cudsDestroy(cudenseH);   
+    if (cudenseH) cusolverDnDestroy(cudenseH);   
 
     cudaDeviceReset();
 
