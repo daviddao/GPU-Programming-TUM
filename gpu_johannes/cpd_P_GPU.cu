@@ -298,6 +298,7 @@ void cpd_comp(
   free((void*)temp_x);
   free((void*)ones);
   free((void*)slice_tmp);
+  free((void*)outlier_SliceVec);
   return;
 }
 
