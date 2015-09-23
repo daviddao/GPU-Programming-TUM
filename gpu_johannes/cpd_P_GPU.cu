@@ -93,13 +93,14 @@ class Timer
 
 // Kernel calculating the nominators of each entry of P (for 6980 x 6980 it takes 160ms)
 __global__ 
-void calc_nominator(double* d_X, double* d_Y, double* d_PSlice, double ksig, int N, int M, int D, int slice_size){
+void calc_nominator(double* d_X, double* d_Y, double* d_PSlice, double ksig, int N, int M, int D, int slice_size, int slice_nr){
 	
-	int i = threadIdx.x + blockDim.x * blockIdx.x;
+	int idx = threadIdx.x + blockDim.x * blockIdx.x;
 	int j = threadIdx.y + blockDim.y * blockIdx.y;
     
+	int i = idx + (slice_size*slice_nr);
     // TODO: include starting and ending index of slice
-	if (i < slice_size && j < M){
+	if (idx < slice_size && i<N && j < M){
 		
 		
 		double diff = 0;
@@ -111,7 +112,7 @@ void calc_nominator(double* d_X, double* d_Y, double* d_PSlice, double ksig, int
             razn+=diff; //proposed name: eucl_dist_sqr; add up the differences for each dimension to get the scalar length of the high-dimensional vector
         }
         // Set it using a row-major -> column major translator (for CUBLAS and MATLAB)
-		d_PSlice[IDX2C(i,j,slice_size)]=exp(razn/ksig); //nominator
+		d_PSlice[IDX2C(i%slice_size,j,slice_size)]=exp(razn/ksig); //nominator
 		
 	}
 }
@@ -135,8 +136,9 @@ void cpd_comp(
   double	ksig, diff, razn, outlier_tmp, sp;
   double	*P, *temp_x;
   double *PSlice;
-  int slice_size = 6890;
+  int slice_size = 100;
   double *ones;
+  double *filler;
   double *outlier_SliceVec;
   
   P = (double*) calloc(M, sizeof(double));
@@ -144,12 +146,12 @@ void cpd_comp(
   PSlice = (double*) calloc(slice_size*M, sizeof(double));
   ones = (double*) calloc(M, sizeof(double));
   outlier_SliceVec = (double*) calloc(slice_size, sizeof(double));
-  
+  filler = (double*) calloc(N,sizeof(double));
   ksig = -2.0 * *sigma2;
   outlier_tmp=(*outlier*M*pow (-ksig*3.14159265358979,0.5*D))/((1-*outlier)*N); 
   fillvector(ones, M, 1);
   fillvector(outlier_SliceVec, slice_size, outlier_tmp);
-
+  fillvector(filler,N,0);
   
  /* printf ("ksig = %lf\n", *sigma2);*/
   /* outlier_tmp=*outlier*N/(1- *outlier)/M*(-ksig*3.14159265358979); */
@@ -173,7 +175,7 @@ void cpd_comp(
   double* d_sliceVec;
   double* d_sliceVec2;
   double* slice_tmp;
-  slice_tmp = (double *)malloc(slice_size*sizeof(double));
+  slice_tmp = (double *)malloc(N*sizeof(double));
   double* d_sp;
   
   
@@ -203,35 +205,46 @@ void cpd_comp(
   cudaMemcpy(d_Y,  y, M*D* sizeof(double), cudaMemcpyHostToDevice);  
   cudaMemcpy(d_ones,  ones, M*sizeof(double), cudaMemcpyHostToDevice);  
   cudaMemcpy(d_sliceVec2,  outlier_SliceVec, slice_size*sizeof(double), cudaMemcpyHostToDevice);  
+  cudaMemcpy(d_sp,  filler, N*sizeof(double), cudaMemcpyHostToDevice);  
+
+  int numSlices = N/slice_size;
+  
 
   
   dim3 block = dim3(4, 32, 1);
   dim3 grid = dim3((slice_size + block.x - 1) / block.x,
 			(M + block.y - 1) / block.y);
-	
-  Timer timer; timer.start();
-  calc_nominator <<<grid, block>>> (d_X, d_Y, d_PSlice, ksig, N, M, D, slice_size); 
-  
-  // Flatten d_ones
-//  cublasSetVector(M, sizeof(double), &(ones[0]), 1, d_ones, 1);
 
   
-  double alpha = 1.0f;
-  double beta = 0.0f;
-  int rowsA = slice_size;
-  int columnsA = M;
   
-  cublasCheckErrors(cublasDgemv(handle, CUBLAS_OP_N, rowsA, columnsA, &alpha, d_PSlice, slice_size, d_ones, 1, &beta, d_sliceVec, 1));
-  //d_sliceVec now contains the sum in the nominator 
-  //now, we add outlier_tmp to all rows
-  alpha = 1;
-  beta = 1;
-  cublasCheckErrors(cublasDgeam(handle, CUBLAS_OP_N, CUBLAS_OP_N, slice_size, 1,
-                            &alpha, d_sliceVec, slice_size, &beta,
-                            d_sliceVec2, slice_size,
-                            d_sp+0, slice_size));
+  Timer timer; timer.start();
+  for (int s=0; s<numSlices+1; s++){
+	  
+	  calc_nominator <<<grid, block>>> (d_X, d_Y, d_PSlice, ksig, N, M, D, slice_size, s); 
+	   
+	   // Flatten d_ones
+	 //  cublasSetVector(M, sizeof(double), &(ones[0]), 1, d_ones, 1);
+
+	   
+	   double alpha = 1.0f;
+	   double beta = 0.0f;
+	   int rowsA = slice_size;
+	   int columnsA = M;
+	   
+	   cublasCheckErrors(cublasDgemv(handle, CUBLAS_OP_N, rowsA, columnsA, &alpha, d_PSlice, slice_size, d_ones, 1, &beta, d_sliceVec, 1));
+	   //d_sliceVec now contains the sum in the nominator 
+	   //now, we add outlier_tmp to all rows
+	   alpha = 1;
+	   beta = 1;
+	   cublasCheckErrors(cublasDgeam(handle, CUBLAS_OP_N, CUBLAS_OP_N, slice_size, 1,
+	                             &alpha, d_sliceVec, slice_size, &beta,
+	                             d_sliceVec2, slice_size,
+	                             d_sp+(s*slice_size), slice_size));
+	   
+  }
+  cudaMemcpy(slice_tmp, d_sp, N* sizeof(double), cudaMemcpyDeviceToHost);  
   
-  cudaMemcpy(slice_tmp, d_sp, slice_size* sizeof(double), cudaMemcpyDeviceToHost);  
+ 
 
   // Free Device Space, so MATLAB doesnt crash
   cudaFree(d_X);
@@ -268,7 +281,8 @@ void cpd_comp(
       
       sp+=outlier_tmp; //for this particular x point, we calculate the complete denominator
       if((float)slice_tmp[n] != (float) sp){
-          mexPrintf("Assertion failed! %d - sp on GPU/CPU: %f - %f \n",n, slice_tmp[n], sp);
+    	  
+        	  mexPrintf("Assertion failed! %d - sp on GPU/CPU: %f - %f \n",n, slice_tmp[n], sp);
 //          mexPrintf("sp on CPU: %f \n",sp);
       }
 
@@ -297,6 +311,7 @@ void cpd_comp(
   free((void*)PSlice);
   free((void*)temp_x);
   free((void*)ones);
+  free((void*)filler);
   free((void*)slice_tmp);
   free((void*)outlier_SliceVec);
   return;
