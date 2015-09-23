@@ -61,6 +61,7 @@ function  [C, W, sigma2, iter, T] =cpd_GRBF(X, Y, beta, lambda, max_it, tol, out
 % Initialization
 T = Y; 
 W = zeros(M,D);
+W1 = zeros(M,D);
 if sigma2 == 0
     sigma2 = (M*trace(X'*X)+N*trace(Y'*Y)-2*sum(X)*sum(Y)')/(M*N*D);
 end
@@ -95,12 +96,16 @@ while (iter<max_it) && (ntol > tol) && (sigma2 > 1e-8)
    
     matrix_A = dP*G + lambda*sigma2*eye(M);
     vector_B = PX-dP*Y;
-    size(matrix_A)
-%     size(vector_B)
+
      tic
-    %W = solve_LSE_GPU(matrix_A, vector_B);
-%     solve_LSE_GPU(matrix_A, vector_B);
-    W = matrix_A \ vector_B;
+     
+     solve_LSE_CULA(matrix_A);
+
+    L1 = tril(matrix_A,-1) + eye(size(matrix_A));
+    U1 = triu(matrix_A);
+%      solve_LSE_QR_GPU(matrix_A, vector_B);
+     W1 = L1 \ vector_B;
+     W = U1 \ W1;
     disp('linear system stuff: ') 
     toc
     % update Y positions

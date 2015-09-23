@@ -1,27 +1,26 @@
+clear all
 
 delete diary.txt
 diary('diary.txt')
-magicCUDA('solve_LSE_GPU')
+magicCUDA('solve_LSE_CULA')
 
-N = 6890;
-% N = 100;
+% N = 3;
+N = 1500;
 A = randn(N,N); 
-B = [1 1 3];
+B = [1; 1; 3];
 
+A1 = A;
+
+% tic
+% [L, U, P] = lu(A);
+% toc
 
 
 tic
-[L, U, P] = lu(A);
+solve_LSE_CULA(A)
 toc
+L1 = tril(A,-1) + eye(size(A));
+U1 = triu(A);
 
-tic
-[Q, R] = qr(A);
-toc
+spy(abs(A1-L1*U1) > 10e-3)
 
-tic
-C = solve_LSE_GPU(A, B);
-toc
-L1 = tril(C,-1) + eye(size(A));
-U1 = triu(C);
-
-spy(abs(A-L1*U1) > 10e-5)
