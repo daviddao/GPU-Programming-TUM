@@ -27,7 +27,7 @@ void cuda_check(string file, int line)
     {
         cout << endl << file << ", line " << line << ": " << cudaGetErrorString(e) << " (" << e << ")" << endl;
         if (prev_line>0) cout << "Previous CUDA call:" << endl << prev_file << ", line " << prev_line << endl;
-        //system("PAUSE");
+        //return;
     }
     prev_file = file;
     prev_line = line;
@@ -71,9 +71,9 @@ void mexFunction( int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[] )
   
   /* Do the actual computations in a subroutine */
     //allocate memory on GPU
-    double** Aarray = (double**)malloc(sizeof(double*));;
-    int* d_infoArray;
-    int *infoArray = (int*)malloc(sizeof(int));
+    double** Aarray = (double**)malloc(sizeof(double*));; // host array of pointers to the device pointers
+    int* d_infoArray = 0;
+    int *infoArray = (int*)malloc(sizeof(int)); // array to check the status of the LU decomposition
     
     cublasStatus_t status;
     cublasHandle_t handle;
@@ -85,7 +85,7 @@ void mexFunction( int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[] )
         //return;
     }
 
-    cudaMalloc((void**)&Aarray[0], N * N * sizeof(double)); CUDA_CHECK;
+    cudaMalloc((void**)&Aarray[0], N * N * sizeof(double)); CUDA_CHECK; // allocate memory to the array o
     cudaMemcpy(Aarray[0], matrix_A, N * N * sizeof(double), cudaMemcpyHostToDevice); CUDA_CHECK;
     
     double** d_Aarray;
@@ -97,7 +97,7 @@ void mexFunction( int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[] )
 
 
 
-    status = cublasDgetrfBatched(handle, N, d_Aarray, N, NULL, d_infoArray, 1);
+    //status = cublasDgetrfBatched(handle, N, d_Aarray, N, NULL, d_infoArray, 1);
     if (status != CUBLAS_STATUS_SUCCESS) 
     {
         printf("error for Batched fun %i\n",status);
@@ -108,7 +108,7 @@ void mexFunction( int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[] )
     cudaMemcpy(matrix_X, Aarray[0], N * N * sizeof(double), cudaMemcpyDeviceToHost);  CUDA_CHECK;
     cudaMemcpy(infoArray, d_infoArray, sizeof(int), cudaMemcpyDeviceToHost);  CUDA_CHECK;    
     
-    printf("LU decomposition status (0 - successsful): %d", infoArray[0]);
+    printf("LU decomposition status (0 - successsful): %d\n", infoArray[0]);
 
 ENDING:
     status = cublasDestroy(handle);
@@ -117,8 +117,11 @@ ENDING:
         printf("error for destroy the handle %i\n",status);
         //return;
     }
+    cudaFree(Aarray[0]);
+    cudaFree(d_Aarray);
     free(Aarray);
     free(infoArray);
+    
   return;
 }
 
