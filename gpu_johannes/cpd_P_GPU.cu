@@ -98,6 +98,19 @@ void calc_Pt1(double* d_Pt1, double* d_sp, double outlier_tmp, int N) {
     }
 }
 
+// Calculates Px using threads
+__global__
+void calc_X_tmp(double* d_Xtemp, double* d_X, double* d_denom, int starting_index, int slice_size, int D, int N) {
+    
+     int idx = threadIdx.x + blockDim.x * blockIdx.x;
+     int d = threadIdx.y + blockDim.y * blockIdx.y;
+    
+     if (idx < slice_size && d < D) {
+        // Create d_Xtemp (slice_size * D)
+        d_Xtemp[IDX2C(idx,d,slice_size)] = d_denom[idx] * d_X[IDX2C(idx + starting_index,d,N)];   
+     } 
+}
+    
 // Calculates slice_size denominator using threads
 __global__
 void calc_denominator(double* d_denom, double* d_sp, double outlier_tmp, int slice_size) {
@@ -152,7 +165,7 @@ void cpd_comp(
   double	ksig, diff, razn, outlier_tmp, sp;
   double	*P, *temp_x;
   double *PSlice;
-  int slice_size = N;
+  int slice_size = N/10;
   double *ones;
   double *filler;
   
@@ -187,11 +200,11 @@ void cpd_comp(
   double* d_E;
   double* d_ones;
   double* slice_tmp;
-  slice_tmp = (double *)malloc(N*sizeof(double));
+  slice_tmp = (double *)malloc(M*D*sizeof(double));
   double* d_sp;
   
   double* d_denom; //stores a denominator vector
-  
+  double* d_X_tmp; //stores a sliced X * denom version of X
   
   
   //TODO: Finish Matrix Vector Multiplication
@@ -211,6 +224,7 @@ void cpd_comp(
   cudaMalloc (&d_sp, N*sizeof(double));
   
   cudaMalloc (&d_denom, slice_size*sizeof(double));
+  cudaMalloc (&d_X_tmp, slice_size*D*sizeof(double));
 
   cudaCheckErrors("cuda malloc fail");
   
@@ -274,7 +288,21 @@ void cpd_comp(
        // Add P1_tmp to P1
        stat = cublasDaxpy(handle, M, &alpha, d_P1_tmp, 1, d_P1, 1);
        cublasCheckErrors(stat);
-
+       
+       // Calculate Px
+       block = dim3(64, 4, 1);
+       grid = dim3((slice_size + block.x - 1) / block.x,
+			(D + block.y - 1) / block.y);
+       
+       // First calculate X_temp_sliced
+       calc_X_tmp <<<grid, block>>> (d_X_tmp, d_X, d_denom, (s*slice_size), slice_size, D, N); 
+       
+       
+       beta = 1.0f;
+       // Do PSlice_t * X_tmp =+ Px
+       // Works for one slice
+       stat = cublasDgemm(handle, CUBLAS_OP_T, CUBLAS_OP_N, M, D, slice_size, &alpha, d_PSlice, slice_size, d_X_tmp, slice_size, &beta, d_Px, M);
+       cublasCheckErrors(stat);
 	   
   }
   
@@ -282,10 +310,10 @@ void cpd_comp(
   block = dim3(256, 1, 1);
   grid = dim3((N + block.x - 1) / block.x,1);
   calc_Pt1  <<<grid, block>>> (d_sp, d_sp, outlier_tmp, N);
-  cudaMemcpy(Pt1, d_sp, N* sizeof(double), cudaMemcpyDeviceToHost);  
+  cudaMemcpy(Pt1, d_sp, N*sizeof(double), cudaMemcpyDeviceToHost);  
   
   // For testing purpose
-  cudaMemcpy(slice_tmp, d_P1, N* sizeof(double), cudaMemcpyDeviceToHost);  
+  cudaMemcpy(slice_tmp, d_Px, M*D*sizeof(double), cudaMemcpyDeviceToHost);  
   //cudaMemcpy(slice_tmp, d_denom, N* sizeof(double), cudaMemcpyDeviceToHost);  
 
   // Free Device Space, so MATLAB doesnt crash
@@ -301,6 +329,7 @@ void cpd_comp(
   cudaFree(d_sp);
   
   cudaFree(d_denom);
+  cudaFree(d_X_tmp);
 
   timer.end();  float t = timer.get();  // elapsed time in seconds
 //   timer.start();  
@@ -357,11 +386,13 @@ void cpd_comp(
   }
   
   // Test for P1
-  for (int i = 0; i < N; i++) {
-     if((float)slice_tmp[i] != (float)P1[i]){
+  for (int i = 0; i < M; i++) {
+     for (int d =0; d < D; d++) {
+     if((float)slice_tmp[IDX2C(i,d,M)] != (float)Px[IDX2C(i,d,M)]){
     	  
-       mexPrintf("Assertion failed! %d - P1[n] on GPU/CPU: %f - %f \n",i, slice_tmp[i],  P1[i]);
+       mexPrintf("Assertion failed! %d - Px[n] on GPU/CPU: %f - %f \n",i,slice_tmp[IDX2C(i,d,M)], Px[IDX2C(i,d,M)]);
 //          mexPrintf("sp on CPU: %f \n",sp);
+        }
      }
   }
 //   
