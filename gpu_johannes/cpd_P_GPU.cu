@@ -97,6 +97,15 @@ void calc_Pt1(double* d_Pt1, double* d_sp, double outlier_tmp, int N) {
         d_Pt1[idx] = 1.0f - (outlier_tmp/(d_sp[idx] + outlier_tmp));
     }
 }
+// Use threads to calculate E, later we sum up
+__global__
+void calc_E(double* d_E, double* d_sp, double outlier_tmp, int N) {
+    int idx = threadIdx.x + blockDim.x * blockIdx.x;
+    
+    if (idx < N) {
+        d_E[idx] = -log(d_sp[idx] + outlier_tmp);
+    }
+}
 
 // Calculates Px using threads
 __global__
@@ -219,7 +228,7 @@ void cpd_comp(
   
   cudaMalloc (&d_Pt1, M*sizeof(double));
   cudaMalloc (&d_Px, M*D*sizeof(double));
-  cudaMalloc (&d_E, M*D*sizeof(double));
+  cudaMalloc (&d_E, N*sizeof(double));
   cudaMalloc (&d_ones, M * sizeof(double));
   cudaMalloc (&d_sp, N*sizeof(double));
   
@@ -262,10 +271,6 @@ void cpd_comp(
       
 	  calc_nominator <<<grid, block>>> (d_X, d_Y, d_PSlice, ksig, N, M, D, slice_size, s); 
 	   
-	   // Flatten d_ones
-	 //  cublasSetVector(M, sizeof(double), &(ones[0]), 1, d_ones, 1);
-
-	   
 	   double alpha = 1.0f;
 	   double beta = 0.0f;
 	   int rowsA = slice_size;
@@ -294,13 +299,11 @@ void cpd_comp(
        grid = dim3((slice_size + block.x - 1) / block.x,
 			(D + block.y - 1) / block.y);
        
-       // First calculate X_temp_sliced
+       // First calculate X_temp_sliced (takes 50ms)
        calc_X_tmp <<<grid, block>>> (d_X_tmp, d_X, d_denom, (s*slice_size), slice_size, D, N); 
        
-       
+       // Do PSlice_t * X_tmp =+ Px 
        beta = 1.0f;
-       // Do PSlice_t * X_tmp =+ Px
-       // Works for one slice
        stat = cublasDgemm(handle, CUBLAS_OP_T, CUBLAS_OP_N, M, D, slice_size, &alpha, d_PSlice, slice_size, d_X_tmp, slice_size, &beta, d_Px, M);
        cublasCheckErrors(stat);
 	   
@@ -309,12 +312,18 @@ void cpd_comp(
   // Calculates the complete P1
   block = dim3(256, 1, 1);
   grid = dim3((N + block.x - 1) / block.x,1);
-  calc_Pt1  <<<grid, block>>> (d_sp, d_sp, outlier_tmp, N);
-  cudaMemcpy(Pt1, d_sp, N*sizeof(double), cudaMemcpyDeviceToHost);  
+  calc_Pt1  <<<grid, block>>> (d_Pt1, d_sp, outlier_tmp, N);
+  // Calculate E
+  calc_E  <<<grid, block>>> (d_E, d_sp, outlier_tmp, N);
+  // Sum up E
+  stat = cublasDasum(handle, N, d_E, 1, &*E);
+  *E +=D*N*log(*sigma2)/2;
   
-  // For testing purpose
-  cudaMemcpy(slice_tmp, d_Px, M*D*sizeof(double), cudaMemcpyDeviceToHost);  
-  //cudaMemcpy(slice_tmp, d_denom, N* sizeof(double), cudaMemcpyDeviceToHost);  
+  cudaMemcpy(Pt1, d_Pt1, N*sizeof(double), cudaMemcpyDeviceToHost);  
+  
+  cudaMemcpy(Px, d_Px, M*D*sizeof(double), cudaMemcpyDeviceToHost);  
+  
+  cudaMemcpy(P1, d_P1, N* sizeof(double), cudaMemcpyDeviceToHost);  
 
   // Free Device Space, so MATLAB doesnt crash
   cudaFree(d_X);
@@ -332,31 +341,28 @@ void cpd_comp(
   cudaFree(d_X_tmp);
 
   timer.end();  float t = timer.get();  // elapsed time in seconds
-//   timer.start();  
-//   calc_Pt1  <<<grid, block>>> (d_sp, d_sp, outlier_tmp, N);
-//   timer.end();  t = timer.get();  // elapsed time in seconds
   
   mexPrintf("\n GPU Time: %f ms \n",t * 1000);
   
-  for (n=0; n < N; n++) {
+  //for (n=0; n < N; n++) {
 	  //mexPrintf ("\n"); // use for printing P[m]
 
-      sp=0;
-      for (m=0; m < M; m++) { //iterate through all points (M: width of y)
-          razn=0;
-          for (d=0; d < D; d++) { //iterate through D dimensions
-             diff=x[n+d*N] - y[m+d*M];// *(x+n+d*N)-*(y+m+d*M);  
-             diff=diff*diff; //take the square of the euclidean norm of one scalar -> square the scalar
-             razn+=diff; //proposed name: eucl_dist_sqr; add up the differences for each dimension to get the scalar length of the high-dimensional vector
-          }
-
-          P[m]=exp(razn/ksig); //nominator
-          
-          sp+=P[m]; //sum in the denominator
-      }
+//       sp=0;
+//       for (m=0; m < M; m++) { //iterate through all points (M: width of y)
+//           razn=0;
+//           for (d=0; d < D; d++) { //iterate through D dimensions
+//              diff=x[n+d*N] - y[m+d*M];// *(x+n+d*N)-*(y+m+d*M);  
+//              diff=diff*diff; //take the square of the euclidean norm of one scalar -> square the scalar
+//              razn+=diff; //proposed name: eucl_dist_sqr; add up the differences for each dimension to get the scalar length of the high-dimensional vector
+//           }
+// 
+//           P[m]=exp(razn/ksig); //nominator
+//           
+//           sp+=P[m]; //sum in the denominator
+//       }
       
       
-      sp+=outlier_tmp; //for this particular x point, we calculate the complete denominator
+      //sp+=outlier_tmp; //for this particular x point, we calculate the complete denominator
       
       // Test out if everything works with Pt1 from GPU
       //Pt1[n] = 1-outlier_tmp/ sp; //see documentation: (1 - ca)
@@ -367,36 +373,36 @@ void cpd_comp(
 // //          mexPrintf("sp on CPU: %f \n",sp);
 //       }
       
-      for (d=0; d < D; d++) {
-       temp_x[d]=x[n+d*N]/ sp;
-      }
-         
-      for (m=0; m < M; m++) {
-         
-          P1[m]+=P[m]/ sp; //P1 is the P * sum_vector from the equation (see documentation) 
-          
-          for (d=0; d < D; d++) {
-            Px[m+d*M]+= temp_x[d]*P[m]; 
-          }
-          
-      }
+//       for (d=0; d < D; d++) {
+//        temp_x[d]=x[n+d*N]/ sp;
+//       }
+//          
+//       for (m=0; m < M; m++) {
+//          
+//           P1[m]+=P[m]/ sp; //P1 is the P * sum_vector from the equation (see documentation) 
+//           
+//           for (d=0; d < D; d++) {
+//             Px[m+d*M]+= temp_x[d]*P[m]; 
+//           }
+//           
+//       }
 
       
-   *E +=  -log(sp);	//entropy: measure of overall change
-  }
+   //*E +=  -log(sp);	//entropy: measure of overall change
+  //}
   
   // Test for P1
-  for (int i = 0; i < M; i++) {
-     for (int d =0; d < D; d++) {
-     if((float)slice_tmp[IDX2C(i,d,M)] != (float)Px[IDX2C(i,d,M)]){
-    	  
-       mexPrintf("Assertion failed! %d - Px[n] on GPU/CPU: %f - %f \n",i,slice_tmp[IDX2C(i,d,M)], Px[IDX2C(i,d,M)]);
-//          mexPrintf("sp on CPU: %f \n",sp);
-        }
-     }
-  }
+//   for (int i = 0; i < M; i++) {
+//      for (int d =0; d < D; d++) {
+//      if((float)slice_tmp[IDX2C(i,d,M)] != (float)Px[IDX2C(i,d,M)]){
+//     	  
+//        mexPrintf("Assertion failed! %d - Px[n] on GPU/CPU: %f - %f \n",i,slice_tmp[IDX2C(i,d,M)], Px[IDX2C(i,d,M)]);
+// //          mexPrintf("sp on CPU: %f \n",sp);
+//         }
+//      }
+//   }
 //   
-  *E +=D*N*log(*sigma2)/2;
+  //*E +=D*N*log(*sigma2)/2;
   
   free((void*)P);
   free((void*)PSlice);
