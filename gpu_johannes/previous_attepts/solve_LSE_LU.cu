@@ -48,7 +48,8 @@ void cuda_check(string file, int line)
 void mexFunction( int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[] )
 {
 	double *Acopy, *Bcopy;
-	double *A, *B;
+	double *A = NULL;
+	double *B = NULL;
     cusolverDnHandle_t handle;
     cusolverStatus_t cusolver_status = CUSOLVER_STATUS_SUCCESS;
     int bufferSize = 0;
@@ -64,11 +65,12 @@ void mexFunction( int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[] )
 	n = mxGetM(IN_A);
 	d = mxGetN(IN_B);
 	lda = n;
-	
+
 	  /* Assign pointers to the input arguments */
 	Acopy      = mxGetPr(IN_A);
 	Bcopy      = mxGetPr(IN_B);
-
+    cudaDeviceReset();	
+    
     cusolver_status = cusolverDnCreate(&handle);
     assert(CUSOLVER_STATUS_SUCCESS == cusolver_status);
     

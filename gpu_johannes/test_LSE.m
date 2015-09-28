@@ -2,21 +2,25 @@ clear all
 
 delete diary.txt
 diary('diary.txt')
-magicCUDA('solve_LSE_LU')
+magicCUDA('solve_LSE_CULA')
 
 % N = 3;
-N = 7000;
+N = 8000;
 A = randn(N,N) + 50*eye(N); 
-B = randn(N, 1);
-
+B = randn(N, 30);
+X = zeros(N, 30);
 tic
  W2 = A\B;
 toc
 
-%  cula_init();
  tic
- solve_LSE_LU(A, B);
+ solve_LSE_CULA(A, B, X);
  toc
-%  cula_shutdown();
  
-spy(abs(W2-B) > 1e-8)
+%  tic
+%  [L, U, P] = lu(A);
+%  X1 = L\B;
+%  X2 = U\X1;
+%  toc
+
+spy(abs(W2-X) > 1e-8)

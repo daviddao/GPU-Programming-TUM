@@ -61,7 +61,6 @@ function  [C, W, sigma2, iter, T] =cpd_GRBF(X, Y, beta, lambda, max_it, tol, out
 % Initialization
 T = Y; 
 W = zeros(M,D);
-W1 = zeros(M,D);
 if sigma2 == 0
     sigma2 = (M*trace(X'*X)+N*trace(Y'*Y)-2*sum(X)*sum(Y)')/(M*N*D);
 end
@@ -95,10 +94,14 @@ while (iter<max_it) && (ntol > tol) && (sigma2 > 1e-8)
     dP = spdiags(P1,0,M,M); % precompute diag(P)
    
     matrix_A = dP*G + lambda*sigma2*eye(M);
-    W = PX-dP*Y;
-
+    matrix_B = PX-dP*Y;
+%     cond(matrix_A)
      tic
-     solve_LSE_CULA(matrix_A, W);
+%      if sigma2 > 1e-4, 
+        solve_LSE_CULA(matrix_A, matrix_B, W);
+%      else
+%         W = matrix_A\matrix_B;
+%      end
 %     W = matrix_A\matrix_B;
     disp('linear system stuff: ') 
     toc
