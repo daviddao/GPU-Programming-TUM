@@ -95,17 +95,11 @@ while (iter<max_it) && (ntol > tol) && (sigma2 > 1e-8)
     dP = spdiags(P1,0,M,M); % precompute diag(P)
    
     matrix_A = dP*G + lambda*sigma2*eye(M);
-    vector_B = PX-dP*Y;
+    W = PX-dP*Y;
 
      tic
-     
-     solve_LSE_CULA(matrix_A);
-
-    L1 = tril(matrix_A,-1) + eye(size(matrix_A));
-    U1 = triu(matrix_A);
-%      solve_LSE_QR_GPU(matrix_A, vector_B);
-     W1 = L1 \ vector_B;
-     W = U1 \ W1;
+     solve_LSE_CULA(matrix_A, W);
+%     W = matrix_A\matrix_B;
     disp('linear system stuff: ') 
     toc
     % update Y positions

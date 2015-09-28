@@ -1,9 +1,10 @@
+
 %%
 clear all
 close all
 clc
 
-magicCUDA('cpd_P_GPU')
+% magicCUDA('cpd_P_GPU')
 magicCUDA('solve_LSE_CULA')
 k = 30;
 

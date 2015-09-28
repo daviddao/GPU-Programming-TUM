@@ -5,7 +5,7 @@
  */
 
 #include <stdio.h>
-#include "mex.h"
+
 #include <iostream>
 #include <vector>
 #include <cmath>
@@ -13,6 +13,7 @@
 #include <cublas_v2.h>
 #include <cula_device.h>
 #include <cula_lapack_device.h>
+#include <cula_lapack.h>
 
 using namespace std;
 
@@ -50,27 +51,24 @@ void cuda_check(string file, int line)
 
 
 
-/* Input arguments */
-#define IN_A		prhs[0]
-#define IN_B		prhs[1]
-
-/* Output arguments */
-//#define OUT_X		plhs[0]
 
 /* Gateway routine */
-void mexFunction( int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[] )
+int main(void)
 {
-  double *matrix_A, *matrix_B;//, *matrix_X;
+
+  
   double *d_matrix_A, *d_matrix_B;
-  int     N, D;
+  int     N= 6890;
+  int D = 30;
   
-  /* Get the sizes of each input argument */
-  N = mxGetM(IN_A);
-  D = mxGetN(IN_B);
+  double *matrix_A = malloc
+  *matrix_B;
   
-    /* Assign pointers to the input arguments */
-  matrix_A      = mxGetPr(IN_A);
-  matrix_B      = mxGetPr(IN_B);
+  srand();
+  
+  for(int i=0;i<N;i++)
+	  for(int j=0;j<N;j++)	
+		  A
   
   /* Create the new arrays and set the output pointers to them */
 //  OUT_X     = mxCreateDoubleMatrix(N, D, mxREAL);
@@ -81,8 +79,8 @@ void mexFunction( int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[] )
   int matrix_pivot[N];
   int *d_matrix_pivot;
   culaStatus status;
-  //status = culaInitialize();
-  //checkStatus(status);
+  status = culaInitialize();
+  checkStatus(status);
   
   cudaMalloc(&d_matrix_A, N * N * sizeof(double)); CUDA_CHECK;
   cudaMalloc(&d_matrix_B, N * D * sizeof(double)); CUDA_CHECK;
@@ -100,7 +98,7 @@ void mexFunction( int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[] )
   
 //  status = culaDeviceDgetrs('N', N, D, d_matrix_A, N, d_matrix_pivot, d_matrix_B, N);
   checkStatus(status);
-  //culaShutdown();
+  culaShutdown();
   
 /*  
   for(int i = 0; i<N; i++)
@@ -124,8 +122,5 @@ void mexFunction( int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[] )
   cudaFree(d_matrix_B);
   cudaFree(d_matrix_pivot);
   
-  return;
+  return 0;
 }
-
-
-
