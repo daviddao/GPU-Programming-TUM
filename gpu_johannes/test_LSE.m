@@ -1,26 +1,25 @@
 clear all
 
-delete diary.txt
-diary('diary.txt')
-magicCUDA('solve_LSE_CULA')
+magicCUDA('solve_LSE_CULA_float')
 
-% N = 3;
-N = 8000;
-A = randn(N,N) + 50*eye(N); 
-B = randn(N, 30);
-X = zeros(N, 30);
-tic
- W2 = A\B;
-toc
+N = 6890;
+A = single(randn(N,N) + 50*eye(N)); 
+B = single(randn(N, 30));
+% tic
+%  W2 = A\B;
+% toc
+for i=1:10,
+    A = single(randn(N,N) + 50*eye(N)); 
+    B = single(randn(N, 30));
 
- tic
- solve_LSE_CULA(A, B, X);
- toc
- 
-%  tic
-%  [L, U, P] = lu(A);
-%  X1 = L\B;
-%  X2 = U\X1;
-%  toc
+    W2 = single(A\B);
 
-spy(abs(W2-X) > 1e-8)
+    tic
+    solve_LSE_CULA_float(A, B);
+    toc
+    
+    spy(abs(W2-B) > 1e-4)
+    pause;
+end
+
+% spy(abs(W2-B) > 1e-5)
