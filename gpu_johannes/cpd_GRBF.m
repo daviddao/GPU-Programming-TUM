@@ -81,8 +81,9 @@ ntol=tol+10;
 L=1;
 
 
-
-
+% max_it = 5;
+% Final accuracy: 23.40 - direct
+% Final accuracy: 23.06 - float CULA
 
 
 while (iter<max_it) && (ntol > tol) && (sigma2 > 1e-8)
@@ -104,9 +105,24 @@ while (iter<max_it) && (ntol > tol) && (sigma2 > 1e-8)
     % M-step. Solve linear system for W.
 
     dP = spdiags(P1,0,M,M); % precompute diag(P)
-    W = (dP*G + lambda*sigma2*eye(M)) \ (PX-dP*Y);
     
+% %     Final accuracy: 24.47 - time 
+    matrix_A = single(dP*G + lambda*sigma2*eye(M));
+    W = single(PX-dP*double(Y));
+    solve_LSE_CULA_float(matrix_A, W);
+    W = double(W);
+
+% %     Final accuracy: 28.20    
+%     if sigma2 > 1e-4,
+%         matrix_A = dP*G + lambda*sigma2*eye(M);
+%         matrix_B = PX-dP*double(Y);
+%         solve_LSE_CULA(matrix_A, matrix_B, W);
+%     else
+%         W = (dP*G + lambda*sigma2*eye(M))\(PX-dP*double(Y));
+%     end
+%     W = (dP*G + lambda*sigma2*eye(M))\(PX-dP*double(Y));
     % update Y positions
+    
     T = Y + G*W;
 
     Np=sum(P1);
@@ -120,6 +136,6 @@ while (iter<max_it) && (ntol > tol) && (sigma2 > 1e-8)
 end
 
 disp('CPD registration succesfully completed.');
-
+save Tfloat.mat T
 %Find the correspondence, such that Y corresponds to X(C,:)
 C = cpd_Pcorrespondence(X,T,sigma2save,outliers); 

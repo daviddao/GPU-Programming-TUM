@@ -1,4 +1,4 @@
-/**magicCUDA('cpd_P_GPU')magicCUDA('cpd_P_GPU')
+/**
  * Johannes and David
  * TU Munich
  * Sep 2015
@@ -51,7 +51,7 @@
     } while (0)
 
 // data filler
-void fillvector(float *data, int N, float value){
+void fillvector(double *data, int N, double value){
     for(int i=0; i<N; i++){
         data[i] = value;
     }
@@ -90,7 +90,7 @@ class Timer
 
 // Calculates Pt1 using threads
 __global__
-void calc_Pt1(float* d_Pt1, float* d_sp, float outlier_tmp, int N) {
+void calc_Pt1(double* d_Pt1, double* d_sp, double outlier_tmp, int N) {
     int idx = threadIdx.x + blockDim.x * blockIdx.x;
     
     if (idx < N) {
@@ -99,7 +99,7 @@ void calc_Pt1(float* d_Pt1, float* d_sp, float outlier_tmp, int N) {
 }
 // Use threads to calculate E, later we sum up
 __global__
-void calc_E(float* d_E, float* d_sp, float outlier_tmp, int N) {
+void calc_E(double* d_E, double* d_sp, double outlier_tmp, int N) {
     int idx = threadIdx.x + blockDim.x * blockIdx.x;
     
     if (idx < N) {
@@ -109,7 +109,7 @@ void calc_E(float* d_E, float* d_sp, float outlier_tmp, int N) {
 
 // Calculates Px using threads
 __global__
-void calc_X_tmp(float* d_Xtemp, float* d_X, float* d_denom, int starting_index, int slice_size, int D, int N) {
+void calc_X_tmp(double* d_Xtemp, double* d_X, double* d_denom, int starting_index, int slice_size, int D, int N) {
     
      int idx = threadIdx.x + blockDim.x * blockIdx.x;
      int d = threadIdx.y + blockDim.y * blockIdx.y;
@@ -122,7 +122,7 @@ void calc_X_tmp(float* d_Xtemp, float* d_X, float* d_denom, int starting_index, 
     
 // Calculates slice_size denominator using threads
 __global__
-void calc_denominator(float* d_denom, float* d_sp, float outlier_tmp, int slice_size) {
+void calc_denominator(double* d_denom, double* d_sp, double outlier_tmp, int slice_size) {
     int idx = threadIdx.x + blockDim.x * blockIdx.x;
     
     if (idx < slice_size) {
@@ -132,7 +132,7 @@ void calc_denominator(float* d_denom, float* d_sp, float outlier_tmp, int slice_
 
 // Kernel calculating the nominators of each entry of P (for 6980 x 6980 it takes 160ms)
 __global__ 
-void calc_nominator(float* d_X, float* d_Y, float* d_PSlice, float ksig, int N, int M, int D, int slice_size, int slice_nr){
+void calc_nominator(double* d_X, double* d_Y, double* d_PSlice, double ksig, int N, int M, int D, int slice_size, int slice_nr){
 	
 	int idx = threadIdx.x + blockDim.x * blockIdx.x;
 	int j = threadIdx.y + blockDim.y * blockIdx.y;
@@ -141,8 +141,8 @@ void calc_nominator(float* d_X, float* d_Y, float* d_PSlice, float ksig, int N, 
 	if (idx < slice_size && i<N && j < M){
 		
 		
-		float diff = 0;
-		float razn = 0;
+		double diff = 0;
+		double razn = 0;
 		for (int d=0; d < D; d++) { //iterate through D dimensions
         	
             diff=d_X[i+d*N] - d_Y[j+d*M];
@@ -157,40 +157,34 @@ void calc_nominator(float* d_X, float* d_Y, float* d_PSlice, float ksig, int N, 
 
 
 void cpd_comp(
-		float* x,
-		float* y, 
-        float* sigma2,
-		float* outlier,
-        float* P1,
-        float* Pt1,
-        float* Px,
-    	float* E,
+		double* x,
+		double* y, 
+        double* sigma2,
+		double* outlier,
+        double* P1,
+        double* Pt1,
+        double* Px,
+    	double* E,
         int N,
 		int M,
         int D
         )
 {
   int		n, m, d;
-  float	ksig, diff, razn, outlier_tmp, sp;
-  float	*P, *temp_x;
-  float *PSlice;
+  double	ksig, diff, razn, outlier_tmp, sp;
+  double	*P, *temp_x;
+  double *PSlice;
   int slice_size = N/10;
-  float *ones;
-  float *filler;
+  double *ones;
+  double *filler;
   
-  P = (float*) calloc(M, sizeof(float));
-  temp_x = (float*) calloc(D, sizeof(float));
-  PSlice = (float*) calloc(slice_size*M, sizeof(float));
-  ones = (float*) calloc(M, sizeof(float));
-  filler = (float*) calloc(N,sizeof(float));
+  P = (double*) calloc(M, sizeof(double));
+  temp_x = (double*) calloc(D, sizeof(double));
+  PSlice = (double*) calloc(slice_size*M, sizeof(double));
+  ones = (double*) calloc(M, sizeof(double));
+  filler = (double*) calloc(N,sizeof(double));
   ksig = -2.0 * *sigma2;
-  //outlier_tmp=(*outlier*M*pow (-ksig*M_PI,0.5*D))/((1-*outlier)*N);
-  outlier_tmp=(*outlier*pow (-ksig*M_PI,0.5*D))/((1-*outlier));
-  
-  // Trick like for Andrey
-  if(outlier_tmp == 0) outlier_tmp = 1e-38;
-  //mexPrintf("OUTLIER %.64f \n", outlier_tmp);
-  
+  outlier_tmp=(*outlier*M*pow (-ksig*3.14159265358979,0.5*D))/((1-*outlier)*N); 
   fillvector(ones, M, 1);
   fillvector(filler,N,0);
   
@@ -204,42 +198,42 @@ void cpd_comp(
   cublasStatus_t stat;
   cublasHandle_t handle;
   
-  float* d_X;
-  float* d_Y;
-  float* d_PSlice; 
-  float* d_PSlice_mat; 
-  float* d_P1;
-  float* d_P1_tmp;
-  float* d_Pt1;
-  float* d_Px;
-  float* d_E;
-  float* d_ones;
-  float* slice_tmp;
-  slice_tmp = (float *)malloc(M*D*sizeof(float));
-  float* d_sp;
+  double* d_X;
+  double* d_Y;
+  double* d_PSlice; 
+  double* d_PSlice_mat; 
+  double* d_P1;
+  double* d_P1_tmp;
+  double* d_Pt1;
+  double* d_Px;
+  double* d_E;
+  double* d_ones;
+  double* slice_tmp;
+  slice_tmp = (double *)malloc(M*D*sizeof(double));
+  double* d_sp;
   
-  float* d_denom; //stores a denominator vector
-  float* d_X_tmp; //stores a sliced X * denom version of X
+  double* d_denom; //stores a denominator vector
+  double* d_X_tmp; //stores a sliced X * denom version of X
   
   
   //TODO: Finish Matrix Vector Multiplication
  
   // Allocate memory on the device
-  cudaMalloc (&d_X, N*D*sizeof(float));
-  cudaMalloc (&d_Y, M*D*sizeof(float));
-  cudaMalloc (&d_PSlice, M*slice_size*sizeof(float));
+  cudaMalloc (&d_X, N*D*sizeof(double));
+  cudaMalloc (&d_Y, M*D*sizeof(double));
+  cudaMalloc (&d_PSlice, M*slice_size*sizeof(double));
   
-  cudaMalloc (&d_P1, N*sizeof(float));
-  cudaMalloc (&d_P1_tmp, N*sizeof(float));
+  cudaMalloc (&d_P1, N*sizeof(double));
+  cudaMalloc (&d_P1_tmp, N*sizeof(double));
   
-  cudaMalloc (&d_Pt1, M*sizeof(float));
-  cudaMalloc (&d_Px, M*D*sizeof(float));
-  cudaMalloc (&d_E, N*sizeof(float));
-  cudaMalloc (&d_ones, M * sizeof(float));
-  cudaMalloc (&d_sp, N*sizeof(float));
+  cudaMalloc (&d_Pt1, M*sizeof(double));
+  cudaMalloc (&d_Px, M*D*sizeof(double));
+  cudaMalloc (&d_E, N*sizeof(double));
+  cudaMalloc (&d_ones, M * sizeof(double));
+  cudaMalloc (&d_sp, N*sizeof(double));
   
-  cudaMalloc (&d_denom, slice_size*sizeof(float));
-  cudaMalloc (&d_X_tmp, slice_size*D*sizeof(float));
+  cudaMalloc (&d_denom, slice_size*sizeof(double));
+  cudaMalloc (&d_X_tmp, slice_size*D*sizeof(double));
 
   cudaCheckErrors("cuda malloc fail");
   
@@ -247,13 +241,13 @@ void cpd_comp(
   stat = cublasCreate(&handle);
   
   // TODO: Load data in the beginning instead of every time!
-  cudaMemcpy(d_X,  x, N*D* sizeof(float), cudaMemcpyHostToDevice);  
-  cudaMemcpy(d_Y,  y, M*D* sizeof(float), cudaMemcpyHostToDevice);  
-  cudaMemcpy(d_ones,  ones, M*sizeof(float), cudaMemcpyHostToDevice);  
-  cudaMemcpy(d_sp,  filler, N*sizeof(float), cudaMemcpyHostToDevice);
+  cudaMemcpy(d_X,  x, N*D* sizeof(double), cudaMemcpyHostToDevice);  
+  cudaMemcpy(d_Y,  y, M*D* sizeof(double), cudaMemcpyHostToDevice);  
+  cudaMemcpy(d_ones,  ones, M*sizeof(double), cudaMemcpyHostToDevice);  
+  cudaMemcpy(d_sp,  filler, N*sizeof(double), cudaMemcpyHostToDevice);
   // Cpy Px to GPU once!
-  cudaMemcpy(d_Px, Px, N*D*sizeof(float), cudaMemcpyHostToDevice);
-  cudaMemcpy(d_P1, P1, N*sizeof(float),cudaMemcpyHostToDevice);
+  cudaMemcpy(d_Px, Px, N*D*sizeof(double), cudaMemcpyHostToDevice);
+  cudaMemcpy(d_P1, P1, N*sizeof(double),cudaMemcpyHostToDevice);
 
   int numSlices = N / slice_size;
   
@@ -277,13 +271,13 @@ void cpd_comp(
       
 	  calc_nominator <<<grid, block>>> (d_X, d_Y, d_PSlice, ksig, N, M, D, slice_size, s); 
 	   
-	   float alpha = 1.0f;
-	   float beta = 0.0f;
+	   double alpha = 1.0f;
+	   double beta = 0.0f;
 	   int rowsA = slice_size;
 	   int columnsA = M;
 	   
        // Calculates sp without outlier
-       stat = cublasSgemv(handle, CUBLAS_OP_N, rowsA, columnsA, &alpha, d_PSlice, slice_size, d_ones, 1, &beta, d_sp+(s*slice_size), 1);
+       stat = cublasDgemv(handle, CUBLAS_OP_N, rowsA, columnsA, &alpha, d_PSlice, slice_size, d_ones, 1, &beta, d_sp+(s*slice_size), 1);
 	   cublasCheckErrors(stat);
        
        // Get the denominator as 1/sp + outlier in d_denom
@@ -293,11 +287,11 @@ void cpd_comp(
        calc_denominator  <<<grid, block>>> (d_denom, d_sp+(s*slice_size), outlier_tmp, slice_size);
        
        // Calculate P1 using PSlice_t * denom
-       stat = cublasSgemv(handle, CUBLAS_OP_T, rowsA, columnsA, &alpha, d_PSlice, slice_size,  d_denom, 1, &beta, d_P1_tmp, 1);
+       stat = cublasDgemv(handle, CUBLAS_OP_T, rowsA, columnsA, &alpha, d_PSlice, slice_size,  d_denom, 1, &beta, d_P1_tmp, 1);
        cublasCheckErrors(stat);
        
        // Add P1_tmp to P1
-       stat = cublasSaxpy(handle, M, &alpha, d_P1_tmp, 1, d_P1, 1);
+       stat = cublasDaxpy(handle, M, &alpha, d_P1_tmp, 1, d_P1, 1);
        cublasCheckErrors(stat);
        
        // Calculate Px
@@ -310,7 +304,7 @@ void cpd_comp(
        
        // Do PSlice_t * X_tmp =+ Px 
        beta = 1.0f;
-       stat = cublasSgemm(handle, CUBLAS_OP_T, CUBLAS_OP_N, M, D, slice_size, &alpha, d_PSlice, slice_size, d_X_tmp, slice_size, &beta, d_Px, M);
+       stat = cublasDgemm(handle, CUBLAS_OP_T, CUBLAS_OP_N, M, D, slice_size, &alpha, d_PSlice, slice_size, d_X_tmp, slice_size, &beta, d_Px, M);
        cublasCheckErrors(stat);
 	   
   }
@@ -322,19 +316,14 @@ void cpd_comp(
   // Calculate E
   calc_E  <<<grid, block>>> (d_E, d_sp, outlier_tmp, N);
   // Sum up E
-  stat = cublasSasum(handle, N, d_E, 1, &*E);
-    
-  *E +=D*N*-log(*sigma2)/2;
+  stat = cublasDasum(handle, N, d_E, 1, &*E);
+  *E +=D*N*log(*sigma2)/2;
   
+  cudaMemcpy(Pt1, d_Pt1, N*sizeof(double), cudaMemcpyDeviceToHost);  
   
-   //mexPrintf("\n E: %f \n",*E);
-
+  cudaMemcpy(Px, d_Px, M*D*sizeof(double), cudaMemcpyDeviceToHost);  
   
-  cudaMemcpy(Pt1, d_Pt1, M*sizeof(float), cudaMemcpyDeviceToHost);  
-  
-  cudaMemcpy(Px, d_Px, M*D*sizeof(float), cudaMemcpyDeviceToHost);  
-  
-  cudaMemcpy(P1, d_P1, N* sizeof(float), cudaMemcpyDeviceToHost);  
+  cudaMemcpy(P1, d_P1, N* sizeof(double), cudaMemcpyDeviceToHost);  
 
   // Free Device Space, so MATLAB doesnt crash
   cudaFree(d_X);
@@ -445,7 +434,7 @@ void mexFunction( int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[] )
     cublasStatus_t stat;
     cublasHandle_t handle;
 	
-  float *x, *y, *sigma2, *outlier, *P1, *Pt1, *Px, *E;
+  double *x, *y, *sigma2, *outlier, *P1, *Pt1, *Px, *E;
   int     N, M, D;
   
   /* Get the sizes of each input argument */
@@ -454,22 +443,22 @@ void mexFunction( int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[] )
   D = mxGetN(IN_x);
   
   /* Create the new arrays and set the output pointers to them */
-  OUT_P1     = mxCreateNumericMatrix(M, 1, mxSINGLE_CLASS, mxREAL);
-  OUT_Pt1    = mxCreateNumericMatrix(N, 1, mxSINGLE_CLASS, mxREAL);
-  OUT_Px     = mxCreateNumericMatrix(M, D, mxSINGLE_CLASS, mxREAL);
-  OUT_E      = mxCreateNumericMatrix(1, 1, mxSINGLE_CLASS, mxREAL);
+  OUT_P1     = mxCreateDoubleMatrix(M, 1, mxREAL);
+  OUT_Pt1    = mxCreateDoubleMatrix(N, 1, mxREAL);
+  OUT_Px     = mxCreateDoubleMatrix(M, D, mxREAL);
+  OUT_E      = mxCreateDoubleMatrix(1, 1, mxREAL);
 
     /* Assign pointers to the input arguments */
-  x      = (float*) mxGetData(IN_x);
-  y       = (float*) mxGetData(IN_y);
-  sigma2       = (float*) mxGetData(IN_sigma2);
-  outlier    = (float*) mxGetData(IN_outlier);
+  x      = mxGetPr(IN_x);
+  y       = mxGetPr(IN_y);
+  sigma2       = mxGetPr(IN_sigma2);
+  outlier    = mxGetPr(IN_outlier);
   
   /* Assign pointers to the output arguments */
-  P1      = (float*) mxGetData(OUT_P1);
-  Pt1      = (float*) mxGetData(OUT_Pt1);
-  Px      = (float*) mxGetData(OUT_Px);
-  E     = (float*) mxGetData(OUT_E);
+  P1      = mxGetPr(OUT_P1);
+  Pt1      = mxGetPr(OUT_Pt1);
+  Px      = mxGetPr(OUT_Px);
+  E     = mxGetPr(OUT_E);
    
   /* Do the actual computations in a subroutine */
   cpd_comp(x, y, sigma2, outlier, P1, Pt1, Px, E, N, M, D);

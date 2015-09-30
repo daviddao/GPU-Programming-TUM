@@ -99,12 +99,16 @@ while (iter<max_it) && (ntol > tol) && (sigma2 > 1e-8)
     tic
 %         matrix_A = single(dP*G + lambda*sigma2*eye(M));
 %         W = single(PX-dP*double(Y));
-% %         solve_LSE_CULA_float(matrix_A, W);
+%         solve_LSE_CULA_float(matrix_A, W);
 %         W = double(W);
-        
+
         matrix_A = dP*G + lambda*sigma2*eye(M);
-        matrix_B = PX-dP*Y;
-        W = matrix_A \ matrix_B;
+        matrix_B = PX-dP*double(Y);
+        solve_LSE_CULA(matrix_A, matrix_B, W);
+        
+%         matrix_A = dP*G + lambda*sigma2*eye(M);
+%         matrix_B = PX-dP*Y;
+%         W = matrix_A \ matrix_B;
         
     disp('linear system stuff: ') 
     toc
