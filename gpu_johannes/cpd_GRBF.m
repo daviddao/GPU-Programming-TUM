@@ -107,10 +107,14 @@ while (iter<max_it) && (ntol > tol) && (sigma2 > 1e-8)
     dP = spdiags(P1,0,M,M); % precompute diag(P)
     
 % %     Final accuracy: 24.47 - time 
-    matrix_A = single(dP*G + lambda*sigma2*eye(M));
-    W = single(PX-dP*double(Y));
-    solve_LSE_CULA_float(matrix_A, W);
-    W = double(W);
+%    matrix_A = single(dP*G + lambda*sigma2*eye(M));
+%    W = single(PX-dP*double(Y));
+%    solve_LSE_CULA_float(matrix_A, W);
+%    W = double(W);
+
+    matrix_A = dP*G + lambda*sigma2*eye(M);
+    W = PX-dP*double(Y);
+    solve_LSE_CULA(matrix_A, W);
 
 % %     Final accuracy: 28.20    
 %     if sigma2 > 1e-4,
