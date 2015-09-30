@@ -449,16 +449,16 @@ void mexFunction( int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[] )
   OUT_E      = mxCreateNumericMatrix(1, 1, mxSINGLE_CLASS, mxREAL);
 
     /* Assign pointers to the input arguments */
-  x      = mxGetPr(IN_x);
-  y       = mxGetPr(IN_y);
-  sigma2       = mxGetPr(IN_sigma2);
-  outlier    = mxGetPr(IN_outlier);
+  x      = (float*) mxGetData(IN_x);
+  y       = (float*) mxGetData(IN_y);
+  sigma2       = (float*) mxGetData(IN_sigma2);
+  outlier    = (float*) mxGetData(IN_outlier);
   
   /* Assign pointers to the output arguments */
-  P1      = mxGetPr(OUT_P1);
-  Pt1      = mxGetPr(OUT_Pt1);
-  Px      = mxGetPr(OUT_Px);
-  E     = mxGetPr(OUT_E);
+  P1      = (float*) mxGetData(OUT_P1);
+  Pt1      = (float*) mxGetData(OUT_Pt1);
+  Px      = (float*) mxGetData(OUT_Px);
+  E     = (float*) mxGetData(OUT_E);
    
   /* Do the actual computations in a subroutine */
   cpd_comp(x, y, sigma2, outlier, P1, Pt1, Px, E, N, M, D);
