@@ -96,7 +96,6 @@ while (iter<max_it) && (ntol > tol) && (sigma2 > 1e-8)
 
     %save('variablesIt1.mat', 'X', 'T', 'sigma2', 'outliers', 'P1', 'Pt1', 'PX', 'L')
     toc
-    tic
     L = L + lambda/2*trace(W'*G*W);
     ntol = abs((L-L_old)/L);
     disp([' CPD nonrigid ' st ' : dL= ' num2str(ntol) ', iter= ' num2str(iter) ' sigma2= ' num2str(sigma2)]);
@@ -104,7 +103,15 @@ while (iter<max_it) && (ntol > tol) && (sigma2 > 1e-8)
     % M-step. Solve linear system for W.
 
     dP = spdiags(P1,0,M,M); % precompute diag(P)
-    W = (dP*G + lambda*sigma2*eye(M)) \ (PX-dP*Y);
+    W_A = (dP*G + lambda*sigma2*eye(M));
+    W_b = (PX-dP*Y);
+    
+    A = full(W_A);
+    b = full(W_b);
+    
+    tic
+    W = W_A \ W_b;
+    toc
     
     % update Y positions
     T = Y + G*W;
@@ -115,7 +122,6 @@ while (iter<max_it) && (ntol > tol) && (sigma2 > 1e-8)
 
     % Plot the result on current iteration
     iter=iter+1;
-    toc
 %toc
 end
 
