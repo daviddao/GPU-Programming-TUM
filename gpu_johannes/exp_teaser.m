@@ -5,6 +5,8 @@ close all
 clc
 
 magicCUDA('solve_LSE_CULA_float')
+magicCUDA('cpd_P_GPU_float')
+
 k = 30;
 
 load('./tr_reg_079.mat');

@@ -16,7 +16,8 @@ M_pts = M.evecs*C_init';
 % plot3(M_pts(:,1),M_pts(:,2),M_pts(:,3),'bo')
 % axis equal
 
-[~, matches] = cpd_register(N_pts, M_pts, options);
+% [~, matches] = cpd_register(N_pts, M_pts, options);
+[~, matches] = cpd_register_float(N_pts, M_pts, options);
 
 C_refinement = N_pts(matches,:)\M_pts;
 C_refined = C_refinement' * C_init;

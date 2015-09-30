@@ -83,6 +83,7 @@ void mexFunction( int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[] )
   checkStatus(status);
   
   cudaMalloc(&d_matrix_A, N * N * sizeof(float)); CUDA_CHECK;
+
   cudaMalloc(&d_matrix_B, N * D * sizeof(float)); CUDA_CHECK;
   cudaMalloc(&d_matrix_pivot, N * sizeof(int)); CUDA_CHECK;
   cudaMemcpy(d_matrix_A, matrix_A, N * N * sizeof(float), cudaMemcpyHostToDevice); CUDA_CHECK;
