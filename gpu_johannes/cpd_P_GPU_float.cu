@@ -184,7 +184,13 @@ void cpd_comp(
   ones = (float*) calloc(M, sizeof(float));
   filler = (float*) calloc(N,sizeof(float));
   ksig = -2.0 * *sigma2;
-  outlier_tmp=(*outlier*M*pow (-ksig*3.14159265358979,0.5*D))/((1-*outlier)*N); 
+  //outlier_tmp=(*outlier*M*pow (-ksig*M_PI,0.5*D))/((1-*outlier)*N);
+  outlier_tmp=(*outlier*pow (-ksig*M_PI,0.5*D))/((1-*outlier));
+  
+  // Trick like for Andrey
+  if(outlier_tmp == 0) outlier_tmp = 1e-38;
+  //mexPrintf("OUTLIER %.64f \n", outlier_tmp);
+  
   fillvector(ones, M, 1);
   fillvector(filler,N,0);
   
@@ -317,7 +323,12 @@ void cpd_comp(
   calc_E  <<<grid, block>>> (d_E, d_sp, outlier_tmp, N);
   // Sum up E
   stat = cublasSasum(handle, N, d_E, 1, &*E);
-  *E +=D*N*log(*sigma2)/2;
+    
+  *E +=D*N*-log(*sigma2)/2;
+  
+  
+   //mexPrintf("\n E: %f \n",*E);
+
   
   cudaMemcpy(Pt1, d_Pt1, M*sizeof(float), cudaMemcpyDeviceToHost);  
   

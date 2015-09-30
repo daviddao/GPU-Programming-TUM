@@ -81,10 +81,6 @@ ntol=tol+10;
 L=1;
 
 
-
-
-
-
 while (iter<max_it) && (ntol > tol) && (sigma2 > 1e-8)
 %tic[P1,Pt1, PX, L]=cpd_P(X,T, sigma2 ,outliers);
     

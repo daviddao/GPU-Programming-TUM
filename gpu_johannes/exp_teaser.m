@@ -3,7 +3,7 @@ clear all
 close all
 clc
 
-magicCUDA('cpd_P_GPU')
+magicCUDA('cpd_P_GPU_float')
 
 k = 30;
 

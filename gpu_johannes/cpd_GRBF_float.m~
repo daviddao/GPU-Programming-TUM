@@ -66,14 +66,12 @@ if sigma2 == 0
 end
 
 % Construct affinity matrix G
-G = cpd_G_mex(double(Y'),double(Y'),beta);
+G = cpd_G_mex(Y',Y',beta);
 G = G+G';
 
 iter=0; 
 ntol=tol+10; 
 L=1;
-
-max_it = 4;
 
 while (iter<max_it) && (ntol > tol) && (sigma2 > 1e-8)
 %tic[P1,Pt1, PX, L]=cpd_P(X,T, sigma2 ,outliers);
@@ -82,19 +80,17 @@ while (iter<max_it) && (ntol > tol) && (sigma2 > 1e-8)
     tic
     % Check whether we want to use the Fast Gauss Transform
 %    [P1,Pt1, PX, L]=cpd_P(X,T, sigma2 ,outliers); st='';
-
     [P1,Pt1, PX, L]= cpd_P_GPU_float(X,T, sigma2 ,outliers); st='';
-    
     %save('variablesIt1.mat', 'X', 'T', 'sigma2', 'outliers', 'P1', 'Pt1', 'PX', 'L')
     disp('1st stuff: ') 
     toc
-    L = L + lambda/2*trace(W'*G*W);
+    L = L + lambda/2*trace(W'*G*W)
     ntol = abs((L-L_old)/L);
     disp([' CPD nonrigid ' st ' : dL= ' num2str(ntol) ', iter= ' num2str(iter) ' sigma2= ' num2str(sigma2)]);
 
     % M-step. Solve linear system for W.
 
-    dP = diag(P1); % precompute diag(P)
+    dP = spdiags(P1,0,M,M); % precompute diag(P)
    
     tic
 %         matrix_A = single(dP*G + lambda*sigma2*eye(M));
@@ -102,10 +98,11 @@ while (iter<max_it) && (ntol > tol) && (sigma2 > 1e-8)
 % %         solve_LSE_CULA_float(matrix_A, W);
 %         W = double(W);
         
-        matrix_A = dP*G + lambda*sigma2*eye(M);
-        matrix_B = PX-dP*Y;
+        matrix_A = dP*double(G) + lambda*sigma2*eye(M);
+        matrix_B = PX-dP*double(Y);
         W = matrix_A \ matrix_B;
-        
+
+    
     disp('linear system stuff: ') 
     toc
     % update Y positions
@@ -124,4 +121,4 @@ end
 disp('CPD registration succesfully completed.');
 
 %Find the correspondence, such that Y corresponds to X(C,:)
-C = cpd_Pcorrespondence_float(X,T,sigma2save,outliers); 
+C = cpd_Pcorrespondence(X,T,sigma2save,outliers); 
