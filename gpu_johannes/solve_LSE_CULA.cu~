@@ -95,7 +95,7 @@ void mexFunction( int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[] )
   printf("N: %d, D: %d\n", N, D); 
   status = culaDeviceDsgesv(N, D, d_matrix_A, N, d_matrix_pivot, d_matrix_B, N, d_matrix_X, N, &iter);
   //  status = culaDeviceDgesv(N, D, d_matrix_A, N, d_matrix_pivot, d_matrix_B, N);
-  printf("Iterations = %d\n", iter);
+    printf("Iterations = 
   checkStatus(status);
   culaShutdown();
   

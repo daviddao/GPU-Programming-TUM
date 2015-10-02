@@ -1,0 +1,374 @@
+[33mcommit 8545224e0c22cccc66d3fc2f129484c70a9c2819[m
+Author: Michal S <szymak06@gmail.com>
+Date:   Wed Sep 30 15:42:23 2015 -0700
+
+    change flag in nvcc in magicCUDA
+
+[33mcommit d7d590ad0e67680f16cac2e26172cc61fc271a5c[m
+Author: szymak <szymak06@gmail.com>
+Date:   Wed Sep 30 15:05:09 2015 -0700
+
+    modification to magicCuda and test the double again
+
+[33mcommit b7ab64eeb2490c026dc5f829a50c315b5e800cc1[m
+Author: Kennung Wintersemester Acc030 <w030@atcremers51.informatik.tu-muenchen.de>
+Date:   Wed Sep 30 23:54:01 2015 +0200
+
+    minor modifications to the main execution of the code
+
+[33mcommit 7be8f0c2f14df16898ff52269d3d4348b4181d29[m
+Author: Kennung Wintersemester Acc030 <w030@atcremers61.informatik.tu-muenchen.de>
+Date:   Wed Sep 30 18:26:59 2015 +0200
+
+    Add deleted file
+
+[33mcommit ca8c8487c96f95ac6115ffcffb7b2479202161be[m
+Merge: 519ae17 6c42f00
+Author: Kennung Wintersemester Acc030 <w030@atcremers61.informatik.tu-muenchen.de>
+Date:   Wed Sep 30 18:25:30 2015 +0200
+
+    Merge master to Michal_branch
+
+[33mcommit 6c42f00a9aa959016456e1b8d467d28805935c18[m
+Author: Kennung Wintersemester Acc035 <w035@atcremers60.informatik.tu-muenchen.de>
+Date:   Wed Sep 30 17:47:56 2015 +0200
+
+    float precision accuracy 13%
+
+[33mcommit 1f4d4b041063619b0e79dfb74f933e44784ab4a0[m
+Author: Kennung Wintersemester Acc033 <w033@atcremers61.informatik.tu-muenchen.de>
+Date:   Wed Sep 30 15:50:09 2015 +0200
+
+    Started changing code to float (buggy)
+
+[33mcommit 51bc304d8d0035280b62b4aaf0e2354888fa2877[m
+Author: Kennung Wintersemester Acc035 <w035@atcremers60.informatik.tu-muenchen.de>
+Date:   Wed Sep 30 15:19:56 2015 +0200
+
+    CPD_GPU in float
+
+[33mcommit 519ae1766542d5f933f933284bedf385c9de6fb4[m
+Author: Kennung Wintersemester Acc030 <w030@atcremers61.informatik.tu-muenchen.de>
+Date:   Tue Sep 29 19:00:26 2015 +0200
+
+    Add LSE_CULA_float solver
+
+[33mcommit dcbc8b0c34c4e1e8e9aa0db3f7d917ca5417ff86[m
+Author: Kennung Wintersemester Acc033 <w033@atcremers50.informatik.tu-muenchen.de>
+Date:   Tue Sep 29 16:04:33 2015 +0200
+
+    started implementing float version of LSE solver
+
+[33mcommit f03cf3ab97aae9843513191fc239f271448ce6a5[m
+Author: Kennung Wintersemester Acc033 <w033@atcremers50.informatik.tu-muenchen.de>
+Date:   Tue Sep 29 12:03:52 2015 +0200
+
+    Added eigen implementation
+
+[33mcommit ad542fd42c039a22daff82ad22ff4cbdfc83e091[m
+Author: Kennung Wintersemester Acc030 <w030@atcremers51.informatik.tu-muenchen.de>
+Date:   Tue Sep 29 00:36:09 2015 +0200
+
+    add iterative solver to the solve_LSE_CULA (working one) and some cleaning of the branch
+
+[33mcommit bffafcb2051f8ba24ca62ae9ac8d6b5d7da17f88[m
+Author: Kennung Wintersemester Acc030 <w030@atcremers61.informatik.tu-muenchen.de>
+Date:   Mon Sep 28 16:24:05 2015 +0200
+
+    stuff
+
+[33mcommit 344a7c92edc88a9ae659d53a8b068c70e148c549[m
+Author: Kennung Wintersemester Acc035 <w035@atcremers49.informatik.tu-muenchen.de>
+Date:   Thu Sep 24 19:30:59 2015 +0200
+
+    working version of P step
+
+[33mcommit 0fc0e2b3666e24f050041f1f9ce277aecb71da4e[m
+Author: Kennung Wintersemester Acc035 <w035@atcremers49.informatik.tu-muenchen.de>
+Date:   Thu Sep 24 19:03:33 2015 +0200
+
+    Px working?
+
+[33mcommit 2c8d4a8aa4f3cd4daf4e1de33b334ca3e201c352[m
+Author: Kennung Wintersemester Acc035 <w035@atcremers49.informatik.tu-muenchen.de>
+Date:   Thu Sep 24 17:03:29 2015 +0200
+
+    P1 calculated!
+
+[33mcommit 0735ce451934b300396b1c6b6065664d3e471178[m
+Author: Kennung Wintersemester Acc030 <w030@atcremers51.informatik.tu-muenchen.de>
+Date:   Thu Sep 24 00:05:23 2015 +0200
+
+    working CULA stuff
+
+[33mcommit bfab3e5b49043314bcae87fb2592021520e2b83c[m
+Author: Kennung Wintersemester Acc035 <w035@atcremers49.informatik.tu-muenchen.de>
+Date:   Wed Sep 23 23:58:29 2015 +0200
+
+    GPU Pt1 works
+
+[33mcommit fb95b8ea57f8c0fd18bfe512ae27d0df99833622[m
+Author: Kennung Wintersemester Acc030 <w030@atcremers51.informatik.tu-muenchen.de>
+Date:   Wed Sep 23 23:09:53 2015 +0200
+
+    fix magicCUDA
+
+[33mcommit 01aa7f114803470f91a9f1c6d947d4b52d91037d[m
+Author: Kennung Wintersemester Acc030 <w030@atcremers51.informatik.tu-muenchen.de>
+Date:   Wed Sep 23 23:08:19 2015 +0200
+
+    added cula function
+
+[33mcommit aa4aeaea8311c19b93b7a2d6e455232974b562a3[m
+Author: Kennung Wintersemester Acc033 <w033@atcremers50.informatik.tu-muenchen.de>
+Date:   Wed Sep 23 22:57:04 2015 +0200
+
+    Implemented version that works with small slices
+
+[33mcommit 6f8295fb2d148d33b00744a3f12ff27cc0f82635[m
+Author: Kennung Wintersemester Acc030 <w030@atcremers51.informatik.tu-muenchen.de>
+Date:   Wed Sep 23 21:48:09 2015 +0200
+
+    fixed QR solver
+
+[33mcommit bb87f2cc2c55e85773f267ce22738a7aff5157d9[m
+Author: Kennung Wintersemester Acc033 <w033@atcremers50.informatik.tu-muenchen.de>
+Date:   Wed Sep 23 20:49:21 2015 +0200
+
+    Added free(outlier_SliceVec)
+
+[33mcommit 8328a3cb8280a62c5378c56f955273c0651e8f21[m
+Author: Kennung Wintersemester Acc033 <w033@atcremers50.informatik.tu-muenchen.de>
+Date:   Wed Sep 23 20:46:19 2015 +0200
+
+    Fixed bugs and cleaned up code
+
+[33mcommit f57321e6363f6540ca9b0b79f97e3d4e53c25ef5[m
+Author: Kennung Wintersemester Acc030 <w030@atcremers51.informatik.tu-muenchen.de>
+Date:   Wed Sep 23 20:22:52 2015 +0200
+
+    some stuff
+
+[33mcommit 6ef3326dbeb0693dc4041ba8895e10ca8c24f584[m
+Author: Kennung Wintersemester Acc033 <w033@atcremers50.informatik.tu-muenchen.de>
+Date:   Wed Sep 23 19:47:57 2015 +0200
+
+    Added working implementation with cublas. needs cleaning up
+
+[33mcommit a5fb01643083dfb17545ae2e393e7ad5b1dd90ad[m
+Author: Kennung Wintersemester Acc030 <w030@atcremers51.informatik.tu-muenchen.de>
+Date:   Wed Sep 23 10:50:54 2015 +0200
+
+    fix the solve_LSE function
+
+[33mcommit f2c832a1a6d25ab05246620248f4e81525c14cc2[m
+Author: Kennung Wintersemester Acc035 <w035@atcremers50.informatik.tu-muenchen.de>
+Date:   Tue Sep 22 22:32:26 2015 +0200
+
+    commented code
+
+[33mcommit 929c5bf7a3aa70ad5350586b6ef6dd9db2ed5c3a[m
+Author: Kennung Wintersemester Acc035 <w035@atcremers50.informatik.tu-muenchen.de>
+Date:   Tue Sep 22 20:46:11 2015 +0200
+
+    it works now
+
+[33mcommit 7ee90f91e4e839b2adc30b86c061c90b574d0183[m
+Author: Kennung Wintersemester Acc033 <w033@atcremers49.informatik.tu-muenchen.de>
+Date:   Tue Sep 22 19:15:11 2015 +0200
+
+    Created working example for dummy arrays
+
+[33mcommit 9e53ae71474d5b654cdfd838569f4a83592394d7[m
+Author: Kennung Wintersemester Acc033 <w033@atcremers49.informatik.tu-muenchen.de>
+Date:   Tue Sep 22 18:48:10 2015 +0200
+
+    Started tracking bugs in  kernel to calculate P[m] for one slice
+
+[33mcommit ee33a7e7a21a5a3b8105f65812908001fe4d0853[m
+Author: Kennung Wintersemester Acc030 <w030@atcremers51.informatik.tu-muenchen.de>
+Date:   Tue Sep 22 17:42:21 2015 +0200
+
+    some stuff for LSE solving
+
+[33mcommit 39df2540adee36214d991cd0b132f7cb31d5cc9c[m
+Author: Kennung Wintersemester Acc033 <w033@atcremers49.informatik.tu-muenchen.de>
+Date:   Tue Sep 22 16:47:08 2015 +0200
+
+    Started implementing kernel to calculate P[m] for one slice
+
+[33mcommit ec8634f4ead51a460877e2c77268ae8c2a2a2d01[m
+Merge: 369b0eb f8148e0
+Author: Kennung Wintersemester Acc030 <w030@atcremers49.informatik.tu-muenchen.de>
+Date:   Mon Sep 21 20:37:39 2015 +0200
+
+    Merge branch 'master' into Michal_branch
+
+[33mcommit 369b0ebd21aef870f8c95a1b6b192062a42b62bb[m
+Author: Kennung Wintersemester Acc030 <w030@atcremers49.informatik.tu-muenchen.de>
+Date:   Mon Sep 21 20:34:44 2015 +0200
+
+    first commit to Michal branch
+
+[33mcommit f8148e09738395ebdef8f21e0ed7b21f689180f2[m
+Author: Kennung Wintersemester Acc033 <w033@atcremers46.informatik.tu-muenchen.de>
+Date:   Mon Sep 21 18:20:28 2015 +0200
+
+    Created (buggy) GPU version of cpd_P_GPU
+
+[33mcommit 8c1349aea861775d8625aa93e88c5547743f2462[m
+Author: Kennung Wintersemester Acc033 <w033@atbeetz6.informatik.tu-muenchen.de>
+Date:   Mon Sep 21 16:16:58 2015 +0200
+
+    Modified cuda mex implementation.
+
+[33mcommit 0e504b17434c806221516660aab73c4372ff277d[m
+Author: Kennung Wintersemester Acc033 <w033@atcremers49.informatik.tu-muenchen.de>
+Date:   Fri Sep 11 16:47:49 2015 +0200
+
+    Implemented the cpd_comp() function in a basic GPU kernel
+
+[33mcommit f9ecd790b85132533c2dc5780607c78556c9f0f3[m
+Author: Kennung Wintersemester Acc033 <w033@atcremers49.informatik.tu-muenchen.de>
+Date:   Fri Sep 11 16:10:58 2015 +0200
+
+    Added  variablesIt1.mat file that contains the input and output variables for cpd_P.c in the first iteration
+
+[33mcommit ec241b9ff517b15ae53488aba242795ffe94685c[m
+Author: Kennung Wintersemester Acc035 <w035@atcremers51.informatik.tu-muenchen.de>
+Date:   Fri Sep 11 14:02:00 2015 +0200
+
+    magicCUDA compilation
+
+[33mcommit 07c0dd8d6dc4a754a8a3281071cd2ca9aff1afe0[m
+Merge: b545098 5c93834
+Author: David Dao <contact.daviddao@gmail.com>
+Date:   Fri Sep 11 09:13:42 2015 +0200
+
+    merge
+
+[33mcommit b545098635d818e43e187a8ee2b47af363d6fcdb[m
+Author: David Dao <contact.daviddao@gmail.com>
+Date:   Fri Sep 11 09:09:52 2015 +0200
+
+    cleaned up code
+
+[33mcommit 5c938345b738ae4a4c853138f533d4a9f993a94e[m
+Merge: a081fbe 611ea68
+Author: Kennung Wintersemester Acc035 <w035@atcremers51.informatik.tu-muenchen.de>
+Date:   Thu Sep 10 16:05:54 2015 +0200
+
+    merge
+
+[33mcommit a081fbe27faeee41510d11a3c1a107b7f1180687[m
+Author: Kennung Wintersemester Acc035 <w035@atcremers51.informatik.tu-muenchen.de>
+Date:   Thu Sep 10 16:03:22 2015 +0200
+
+    shared histy
+
+[33mcommit 611ea680d90cd9d4ad12b9930bfdba2e37a69743[m
+Author: Kennung Wintersemester Acc033 <w033@atcremers49.informatik.tu-muenchen.de>
+Date:   Thu Sep 10 15:40:04 2015 +0200
+
+    started exercises 13 and 14. Color channels are mixed in exercise 13 for high iteration numbers
+
+[33mcommit 23901d3c37cb93e8f0eb520420ed4bc35d832a73[m
+Author: Kennung Wintersemester Acc030 <w030@atcremers50.informatik.tu-muenchen.de>
+Date:   Thu Sep 10 15:24:23 2015 +0200
+
+    Added ex15
+
+[33mcommit 8175bd6faa0efd076c38f63dbd216c0f27516751[m
+Author: Kennung Wintersemester Acc033 <w033@atcremers49.informatik.tu-muenchen.de>
+Date:   Wed Sep 9 17:01:05 2015 +0200
+
+    completed ex10
+
+[33mcommit 3889b95846d988c8f4a62a4f72d2fb8026ba03e1[m
+Author: Kennung Wintersemester Acc030 <w030@atcremers50.informatik.tu-muenchen.de>
+Date:   Wed Sep 9 16:16:28 2015 +0200
+
+    Add exercise 11
+
+[33mcommit 1c9f11bc052fd5a97fb86a5d8fb3cce261ac95bb[m
+Merge: dd00e6d 8e00d83
+Author: Kennung Wintersemester Acc033 <w033@atcremers49.informatik.tu-muenchen.de>
+Date:   Wed Sep 9 15:52:16 2015 +0200
+
+    Merge branch 'master' of https://github.com/daviddao/GPU-Programming-TUM
+
+[33mcommit dd00e6d617cb20bc8fd3aa59dd80c5b4f1621bf8[m
+Author: Kennung Wintersemester Acc033 <w033@atcremers49.informatik.tu-muenchen.de>
+Date:   Wed Sep 9 15:50:44 2015 +0200
+
+    added first part of exercise 10
+
+[33mcommit 8e00d83c462752ade457dd4b45ecd625fae81126[m
+Author: Kennung Wintersemester Acc030 <w030@atcremers50.informatik.tu-muenchen.de>
+Date:   Wed Sep 9 14:37:47 2015 +0200
+
+    Changes in ex5,6,7,8
+
+[33mcommit 48e2cd0bfccbda243333aecbd00eca2f64b98bb7[m
+Author: Kennung Wintersemester Acc033 <w033@atcremers49.informatik.tu-muenchen.de>
+Date:   Wed Sep 9 11:15:26 2015 +0200
+
+    Added working versions of exercise 3 and 4. Added image folder for convenience
+
+[33mcommit dbb2da99841f13c4aa145966224f3c90244aa136[m
+Merge: 8e86ed8 26a0d2d
+Author: Kennung Wintersemester Acc033 <w033@atcremers48.informatik.tu-muenchen.de>
+Date:   Tue Sep 8 18:36:24 2015 +0200
+
+    Merge branch 'master' of https://github.com/daviddao/GPU-Programming-TUM
+
+[33mcommit 8e86ed88e6779924141021e431b46afa038516f5[m
+Author: Kennung Wintersemester Acc033 <w033@atcremers48.informatik.tu-muenchen.de>
+Date:   Tue Sep 8 18:36:01 2015 +0200
+
+    Added exercise 6: shared memory, textures, const memory
+
+[33mcommit 26a0d2dca36d2648c58aa2e8dd5ccb984707a8b8[m
+Merge: 1e8b307 516f2b5
+Author: Kennung Wintersemester Acc035 <w035@atcremers50.informatik.tu-muenchen.de>
+Date:   Tue Sep 8 18:35:18 2015 +0200
+
+    Merge branch 'master' of https://github.com/daviddao/GPU-Programming-TUM
+
+[33mcommit 1e8b307385cc297910fcc7cfd485f35d9aed885c[m
+Author: Kennung Wintersemester Acc035 <w035@atcremers50.informatik.tu-muenchen.de>
+Date:   Tue Sep 8 18:34:58 2015 +0200
+
+    added edge detector
+
+[33mcommit 516f2b539ae06f8cdd1ef614301f2db23a0d6c60[m
+Author: Kennung Wintersemester Acc030 <w030@atcremers51.informatik.tu-muenchen.de>
+Date:   Tue Sep 8 18:06:36 2015 +0200
+
+    Change the rotational gradient kernel
+
+[33mcommit 4e9d795128d88aae375880fc8a630f9b53f698eb[m
+Author: Kennung Wintersemester Acc035 <w035@atcremers50.informatik.tu-muenchen.de>
+Date:   Tue Sep 8 17:34:29 2015 +0200
+
+    added structure tensor exercise
+
+[33mcommit a3aa0738ba23fa0c222bba58b2445bda594c559a[m
+Author: Kennung Wintersemester Acc035 <w035@atcremers50.informatik.tu-muenchen.de>
+Date:   Tue Sep 8 13:51:01 2015 +0200
+
+    game of life GPU
+
+[33mcommit 92d775171f29070fb124efa8744ffda4ad2ad6d9[m
+Author: Kennung Wintersemester Acc033 <w033@atcremers48.informatik.tu-muenchen.de>
+Date:   Tue Sep 8 10:06:30 2015 +0200
+
+    -Added completed exercise 5
+    
+    jrausch
+
+[33mcommit cd7f7654472d2afa23ba72ad4c5cb785f919b1a9[m
+Author: David Dao <contact.daviddao@gmail.com>
+Date:   Tue Sep 8 09:59:54 2015 +0200
+
+    Initial commit

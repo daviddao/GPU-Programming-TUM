@@ -4,7 +4,7 @@ clear all
 close all
 clc
 
-magicCUDA('solve_LSE_CULA_float')
+magicCUDA('solve_LSE_CULA')
 magicCUDA('cpd_P_GPU')
 k = 30;
 
