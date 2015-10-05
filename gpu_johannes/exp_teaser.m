@@ -4,8 +4,12 @@ clear all
 close all
 clc
 
-magicCUDA('solve_LSE_CULA')
-magicCUDA('cpd_P_GPU')
+% magicCUDA('solve_LSE_QR_GPU')
+% magicCUDA('solve_LSE_LU')
+% magicCUDA('solve_LSE_CULA_iterative_host')
+% magicCUDA('solve_LSE_CULA_float_host')
+% magicCUDA('solve_LSE_CULA_double_host')
+% magicCUDA('cpd_P_GPU')
 k = 30;
 
 load('./tr_reg_079.mat');

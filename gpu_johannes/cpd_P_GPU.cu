@@ -170,8 +170,7 @@ void cpd_comp(
         int D
         )
 {
-  int		n, m, d;
-  double	ksig, diff, razn, outlier_tmp, sp;
+  double	ksig, outlier_tmp;
   double	*P, *temp_x;
   double *PSlice;
   int slice_size = N/10;
@@ -193,15 +192,13 @@ void cpd_comp(
   
   
   
-  // CUBLAS Stuff
-  cudaError_t cudaStat;    
+  // CUBLAS Stuff 
   cublasStatus_t stat;
   cublasHandle_t handle;
   
   double* d_X;
   double* d_Y;
   double* d_PSlice; 
-  double* d_PSlice_mat; 
   double* d_P1;
   double* d_P1_tmp;
   double* d_Pt1;
@@ -429,11 +426,7 @@ void cpd_comp(
 
 /* Gateway routine */
 void mexFunction( int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[] )
-{
-    cudaError_t cudaStat;    
-    cublasStatus_t stat;
-    cublasHandle_t handle;
-	
+{	
   double *x, *y, *sigma2, *outlier, *P1, *Pt1, *Px, *E;
   int     N, M, D;
   

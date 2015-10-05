@@ -11,10 +11,7 @@ options.sigma2 = 0;
 N_pts = N.evecs;
 M_pts = M.evecs*C_init';
 
-% figure
-% plot3(N_pts(:,1),N_pts(:,2),N_pts(:,3),'r*'), hold on
-% plot3(M_pts(:,1),M_pts(:,2),M_pts(:,3),'bo')
-% axis equal
+
 
 % [~, matches] = cpd_register(N_pts, M_pts, options);
 [~, matches] = cpd_register(N_pts, M_pts, options);
@@ -25,5 +22,7 @@ C_refined = C_refinement' * C_init;
 if nargout==3
     R = C_refinement';
 end
+
+
 
 end

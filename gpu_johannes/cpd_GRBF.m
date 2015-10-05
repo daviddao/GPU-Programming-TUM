@@ -79,10 +79,10 @@ G = G+G';
 iter=0; 
 ntol=tol+10; 
 L=1;
-
+total_time = 0;
 % Final accuracy: 22.55
 
-max_it = 4;
+%  max_it = 3;
 % Final accuracy: 23.40 - direct
 % Final accuracy: 23.06 - float CULA
 
@@ -90,6 +90,14 @@ max_it = 4;
 while (iter<max_it) && (ntol > tol) && (sigma2 > 1e-8)
 %tic[P1,Pt1, PX, L]=cpd_P(X,T, sigma2 ,outliers);
     
+
+% plot3(X(:,1),X(:,2),X(:,3),'r*'), hold on
+% plot3(T(:,1),T(:,2),T(:,3),'bo')
+% axis equal
+% hold off
+% pause;
+
+
     L_old=L;
     tic
     % Check whether we want to use the Fast Gauss Transform
@@ -98,7 +106,6 @@ while (iter<max_it) && (ntol > tol) && (sigma2 > 1e-8)
 
     %save('variablesIt1.mat', 'X', 'T', 'sigma2', 'outliers', 'P1', 'Pt1', 'PX', 'L')
     toc
-    tic
     L = L + lambda/2*trace(W'*G*W);
     ntol = abs((L-L_old)/L);
     disp([' CPD nonrigid ' st ' : dL= ' num2str(ntol) ', iter= ' num2str(iter) ' sigma2= ' num2str(sigma2)]);
@@ -107,29 +114,37 @@ while (iter<max_it) && (ntol > tol) && (sigma2 > 1e-8)
 
     dP = spdiags(P1,0,M,M); % precompute diag(P)
     
+    
+    
+%     W = (dP*G + lambda*sigma2*eye(M))\(PX-dP*double(Y));
+
 % %     Final accuracy: 24.47 - time 
+
+   matrix_A = single(dP*G + lambda*sigma2*eye(M));
+   W = single(PX-dP*double(Y));
+ tic  
+   solve_LSE_CULA_float_host(matrix_A, W);
+      total_time = total_time + toc    
+   W = double(W);
+
+%    matrix_A = dP*G + lambda*sigma2*eye(M);
+%    W = PX-dP*double(Y);
+%    solve_LSE_CULA_double_host(matrix_A, W); 
+
 %    matrix_A = single(dP*G + lambda*sigma2*eye(M));
-%    W = single(PX-dP*double(Y));
-%    solve_LSE_CULA_float(matrix_A, W);
+%    matrix_B = single(PX-dP*double(Y));
+%    W = solve_LSE_QR_GPU(matrix_A, matrix_B);
 %    W = double(W);
-
-%     matrix_A = dP*G + lambda*sigma2*eye(M);
-%     W = PX-dP*double(Y);
-%     solve_LSE_CULA(matrix_A, W);
-
-%     matrix_A = dP*G + lambda*sigma2*eye(M);
-%     matrix_B = PX-dP*double(Y);
-%     W = solve_LSE_QR_GPU(matrix_A, matrix_B);
 
 % %     Final accuracy: 28.20    
 %     if sigma2 > 1e-4,
 %         matrix_A = dP*G + lambda*sigma2*eye(M);
 %         matrix_B = PX-dP*double(Y);
-%         solve_LSE_CULA(matrix_A, matrix_B, W);
+%         solve_LSE_CULA_iterative_host(matrix_A, matrix_B, W);
 %     else
-        W = (dP*G + lambda*sigma2*eye(M))\(PX-dP*double(Y));
+%         W = (dP*G + lambda*sigma2*eye(M))\(PX-dP*double(Y));
 %     end
-    
+
 %     update Y positions  
     T = Y + G*W;
 
@@ -139,11 +154,19 @@ while (iter<max_it) && (ntol > tol) && (sigma2 > 1e-8)
 
     % Plot the result on current iteration
     iter=iter+1;
-    toc
+
+%     C = cpd_Pcorrespondence(X,T,sigma2save,outliers);
+%     save C_.mat C 
+%     pause;
+ 
 %toc
 end
+
+disp('Total time: ')
+total_time/iter
 
 disp('CPD registration succesfully completed.');
 % save Tdouble.mat T
 %Find the correspondence, such that Y corresponds to X(C,:)
 C = cpd_Pcorrespondence(X,T,sigma2save,outliers); 
+

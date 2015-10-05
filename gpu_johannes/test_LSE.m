@@ -1,25 +1,28 @@
 clear all
 
-magicCUDA('solve_LSE_CULA_float')
+% magicCUDA('solve_LSE_CULA_double_host')
 
 N = 6890;
-A = single(randn(N,N) + 50*eye(N)); 
-B = single(randn(N, 30));
-% tic
-%  W2 = A\B;
-% toc
-for i=1:10,
-    A = single(randn(N,N) + 50*eye(N)); 
-    B = single(randn(N, 30));
+M = 30;
+% A = (randn(N,N)); 
+% B = (randn(N, 30));
+% X = zeros(N,30);
 
-    W2 = single(A\B);
-
+for i=1:4,
+    A = single((randn(N,N))); 
+    B = single((randn(N, M)));
+    X = single(zeros(N,M));
+    
     tic
-    solve_LSE_CULA_float(A, B);
+    W2 = A\B;
+    toc 
+     
+    tic
+    X = solve_LSE_QR_GPU(A, B);
     toc
     
-    spy(abs(W2-B) > 1e-4)
-    pause;
+    spy(abs(W2-X) > 1e-3)
+%     pause;
 end
 
 % spy(abs(W2-B) > 1e-5)

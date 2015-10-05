@@ -32,7 +32,8 @@ using namespace std;
 /* Gateway routine */
 void mexFunction( int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[] )
 {
-	double *A, *B, *XC;
+	float *A, *B;
+	double *XC;
 	
 	/* Get the sizes of each input argument */
 	const int N = mxGetM(IN_A);
@@ -41,11 +42,12 @@ void mexFunction( int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[] )
 	/* Create the new arrays and set the output pointers to them */
 	OUT_X     = mxCreateDoubleMatrix(N, D, mxREAL);
 	//OUT_X     = mxCreateDoubleMatrix(N, N, mxREAL);
+	float *X_h = (float*)malloc(N*D*sizeof(float));
 	
 	
 	/* Assign pointers to the input arguments */
-	A      = mxGetPr(IN_A);
-	B      = mxGetPr(IN_B);
+	A      = (float*)mxGetPr(IN_A);
+	B      = (float*)mxGetPr(IN_B);
 	
 	/* Assign pointers to the output arguments */
 	XC      = mxGetPr(OUT_X);
@@ -78,16 +80,16 @@ void mexFunction( int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[] )
     //double B[ldb*nrhs1] = { 6.0, 15.0, 4.0}; 
     //double XC[ldb*nrhs1]; // solution matrix from GPU
 
-    double *d_A = NULL; // linear memory of GPU  
-    double *d_tau = NULL; // linear memory of GPU 
-    double *d_B  = NULL; 
+    float *d_A = NULL; // linear memory of GPU  
+    float *d_tau = NULL; // linear memory of GPU 
+    float *d_B  = NULL; 
     int *devInfo = NULL; // info in gpu (device copy)
-    double *d_work = NULL;
+    float *d_work = NULL;
     int  lwork = 0; 
 
     int info_gpu = 0;
 
-    const double one = 1;
+    const float one = 1;
 
     /*printf("A = (matlab base-1)\n");
     printMatrix(m, m, A, lda, "A");
@@ -104,22 +106,22 @@ void mexFunction( int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[] )
     assert(CUBLAS_STATUS_SUCCESS == cublas_status);
     
 // step 2: copy A and B to device
-    cudaStat1 = cudaMalloc ((void**)&d_A  , sizeof(double) * lda * N);
-    cudaStat2 = cudaMalloc ((void**)&d_tau, sizeof(double) * N);
-    cudaStat3 = cudaMalloc ((void**)&d_B  , sizeof(double) * ldb * nrhs1);
+    cudaStat1 = cudaMalloc ((void**)&d_A  , sizeof(float) * lda * N);
+    cudaStat2 = cudaMalloc ((void**)&d_tau, sizeof(float) * N);
+    cudaStat3 = cudaMalloc ((void**)&d_B  , sizeof(float) * ldb * nrhs1);
     cudaStat4 = cudaMalloc ((void**)&devInfo, sizeof(int));
     assert(cudaSuccess == cudaStat1);
     assert(cudaSuccess == cudaStat2);
     assert(cudaSuccess == cudaStat3);
     assert(cudaSuccess == cudaStat4);
 
-    cudaStat1 = cudaMemcpy(d_A, A, sizeof(double) * lda * N   , cudaMemcpyHostToDevice);
-    cudaStat2 = cudaMemcpy(d_B, B, sizeof(double) * ldb * nrhs1, cudaMemcpyHostToDevice);
+    cudaStat1 = cudaMemcpy(d_A, A, sizeof(float) * lda * N   , cudaMemcpyHostToDevice);
+    cudaStat2 = cudaMemcpy(d_B, B, sizeof(float) * ldb * nrhs1, cudaMemcpyHostToDevice);
     assert(cudaSuccess == cudaStat1);
     assert(cudaSuccess == cudaStat2);
  
 // step 3: query working space of geqrf and ormqr
-    cusolver_status = cusolverDnDgeqrf_bufferSize(
+    cusolver_status = cusolverDnSgeqrf_bufferSize(
         cudenseH, 
         N, 
         N, 
@@ -128,11 +130,11 @@ void mexFunction( int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[] )
         &lwork);
     assert (cusolver_status == CUSOLVER_STATUS_SUCCESS);
  
-    cudaStat1 = cudaMalloc((void**)&d_work, sizeof(double)*lwork);
+    cudaStat1 = cudaMalloc((void**)&d_work, sizeof(float)*lwork);
     assert(cudaSuccess == cudaStat1);
 
 // step 4: compute QR factorization
-    cusolver_status = cusolverDnDgeqrf(
+    cusolver_status = cusolverDnSgeqrf(
         cudenseH, 
         N, 
         N, 
@@ -154,7 +156,7 @@ void mexFunction( int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[] )
     assert(0 == info_gpu);
 
 // step 5: compute Q^T*B
-    cusolver_status= cusolverDnDormqr(
+    cusolver_status= cusolverDnSormqr(
         cudenseH, 
         CUBLAS_SIDE_LEFT, 
         CUBLAS_OP_T,
@@ -182,7 +184,7 @@ void mexFunction( int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[] )
 
 // step 6: compute x = R \ Q^T*B
 
-    cublas_status = cublasDtrsm(
+    cublas_status = cublasStrsm(
          cublasH,
          CUBLAS_SIDE_LEFT,
          CUBLAS_FILL_MODE_UPPER,
@@ -199,8 +201,15 @@ void mexFunction( int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[] )
     assert(CUBLAS_STATUS_SUCCESS == cublas_status);
     assert(cudaSuccess == cudaStat1);
 
-    cudaStat1 = cudaMemcpy(XC, d_B, sizeof(double)*ldb*nrhs1, cudaMemcpyDeviceToHost);
+    cudaStat1 = cudaMemcpy(X_h, d_B, sizeof(float)*ldb*nrhs1, cudaMemcpyDeviceToHost);
     assert(cudaSuccess == cudaStat1);
+    
+    for(int i =0; i<4;i++)
+    	printf("%f ", X_h[i]);
+    printf("\n");
+    
+    for(int i=0;i<N*D;i++)
+    	XC[i] = (double)X_h[i];
 
     //printf("X = (matlab base-1)\n");
     //printMatrix(m, nrhs1, XC, ldb, "X");
@@ -211,7 +220,7 @@ void mexFunction( int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[] )
     if (d_B    ) cudaFree(d_B);
     if (devInfo) cudaFree(devInfo);
     if (d_work ) cudaFree(d_work);
-
+    free(X_h);
 
     if (cublasH ) cublasDestroy(cublasH);   
     if (cudenseH) cusolverDnDestroy(cudenseH);   
