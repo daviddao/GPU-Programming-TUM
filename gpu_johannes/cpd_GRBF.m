@@ -73,19 +73,20 @@ if sigma2 == 0
 end
 
 % Construct affinity matrix G
-G = cpd_G_mex(Y',Y',beta);
-G = G+G';
+G = sparse(cpd_G_mex(Y',Y',beta));
+G = sparse(G+G');
 
 iter=0; 
 ntol=tol+10; 
 L=1;
-total_time = 0;
+time_lse = 0;
+time_cpd = 0;
 % Final accuracy: 22.55
 
-%  max_it = 3;
+ max_it = 5;
 % Final accuracy: 23.40 - direct
 % Final accuracy: 23.06 - float CULA
-
+% tic
 
 while (iter<max_it) && (ntol > tol) && (sigma2 > 1e-8)
 %tic[P1,Pt1, PX, L]=cpd_P(X,T, sigma2 ,outliers);
@@ -105,7 +106,7 @@ while (iter<max_it) && (ntol > tol) && (sigma2 > 1e-8)
     [P1,Pt1, PX, L]=cpd_P_GPU(X,T, sigma2 ,outliers); st='';
 
     %save('variablesIt1.mat', 'X', 'T', 'sigma2', 'outliers', 'P1', 'Pt1', 'PX', 'L')
-    toc
+    time_cpd = time_cpd + toc
     L = L + lambda/2*trace(W'*G*W);
     ntol = abs((L-L_old)/L);
     disp([' CPD nonrigid ' st ' : dL= ' num2str(ntol) ', iter= ' num2str(iter) ' sigma2= ' num2str(sigma2)]);
@@ -114,17 +115,17 @@ while (iter<max_it) && (ntol > tol) && (sigma2 > 1e-8)
 
     dP = spdiags(P1,0,M,M); % precompute diag(P)
     
-    
-    
-%     W = (dP*G + lambda*sigma2*eye(M))\(PX-dP*double(Y));
+   tic   
+
+   
+%     matrix_A = dP*G + lambda*sigma2*eye(M);
+%     W = matrix_A\(PX-dP*double(Y));
 
 % %     Final accuracy: 24.47 - time 
 
    matrix_A = single(dP*G + lambda*sigma2*eye(M));
-   W = single(PX-dP*double(Y));
- tic  
+   W = single(PX-dP*double(Y));  
    solve_LSE_CULA_float_host(matrix_A, W);
-      total_time = total_time + toc    
    W = double(W);
 
 %    matrix_A = dP*G + lambda*sigma2*eye(M);
@@ -144,7 +145,7 @@ while (iter<max_it) && (ntol > tol) && (sigma2 > 1e-8)
 %     else
 %         W = (dP*G + lambda*sigma2*eye(M))\(PX-dP*double(Y));
 %     end
-
+      time_lse = time_lse + toc   
 %     update Y positions  
     T = Y + G*W;
 
@@ -159,11 +160,24 @@ while (iter<max_it) && (ntol > tol) && (sigma2 > 1e-8)
 %     save C_.mat C 
 %     pause;
  
+%     if iter == 5,
+%        disp('Total time: ')
+%         total_time/iter 
+%         
+%     end
 %toc
 end
 
-disp('Total time: ')
-total_time/iter
+disp('LSE time: ')
+time_lse/iter
+
+disp('CPD time: ')
+time_cpd/iter
+
+
+% disp('TOTAL_TIME: ')
+% time_total = toc
+
 
 disp('CPD registration succesfully completed.');
 % save Tdouble.mat T

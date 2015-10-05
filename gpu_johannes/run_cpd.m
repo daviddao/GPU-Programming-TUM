@@ -7,7 +7,6 @@ options.lambda = 3; % regularization weight
 options.max_it = max_iters;
 options.tol = 1e-5;
 options.sigma2 = 0;
-
 N_pts = N.evecs;
 M_pts = M.evecs*C_init';
 
