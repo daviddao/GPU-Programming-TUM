@@ -6,6 +6,7 @@
 #include "mex.h"
 #include <iostream>
 #include <vector>
+#include <cmath>
 
 void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray*prhs[])
 {
@@ -47,7 +48,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray*prhs[])
 				const double dx = x[i*dim+d] - y[j*dim+d];
 				diff += dx*dx;
 			}
-			G[i*m+j] = std::exp(diff/k);
+			G[i*m+j] = exp(diff/k);
 		}
 	}
 }

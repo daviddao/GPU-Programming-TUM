@@ -54,6 +54,13 @@
 
 
 function  [C, W, sigma2, iter, T] =cpd_GRBF(X, Y, beta, lambda, max_it, tol, outliers, sigma2)
+% X = linspace(1,25,25);
+% X = vec2mat(X,5);
+% Y = linspace(26,50,25);
+% Y = vec2mat(Y,5);
+
+
+
 
 [N, D]=size(X);
 [M, D]=size(Y);
@@ -66,31 +73,63 @@ if sigma2 == 0
 end
 
 % Construct affinity matrix G
-G = cpd_G_mex(Y',Y',beta);
-G = G+G';
+G = sparse(cpd_G_mex(Y',Y',beta));
+G = sparse(G+G');
 
 iter=0; 
 ntol=tol+10; 
 L=1;
 
+ max_it = 5;
+% Final accuracy: 23.40 - direct
+% Final accuracy: 23.09 - float CULA
+% Final accuracy: 23.40 - double CULA iterative + mlDivide
+
 while (iter<max_it) && (ntol > tol) && (sigma2 > 1e-8)
-tic
+%tic[P1,Pt1, PX, L]=cpd_P(X,T, sigma2 ,outliers);
 
     L_old=L;
-    
+    tic
     % Check whether we want to use the Fast Gauss Transform
-    [P1,Pt1, PX, L]=cpd_P(X,T, sigma2 ,outliers); st='';
+    [P1,Pt1, PX, L]=cpd_P_GPU(X,T, sigma2 ,outliers); st='';
+%     [P1,Pt1, PX, L]=cpd_P(X,T, sigma2 ,outliers); st='';
+    disp('CPD time: ')
+    toc
     
+    %save('variablesIt1.mat', 'X', 'T', 'sigma2', 'outliers', 'P1', 'Pt1', 'PX', 'L')
     L = L + lambda/2*trace(W'*G*W);
     ntol = abs((L-L_old)/L);
     disp([' CPD nonrigid ' st ' : dL= ' num2str(ntol) ', iter= ' num2str(iter) ' sigma2= ' num2str(sigma2)]);
 
     % M-step. Solve linear system for W.
 
-    dP = spdiags(P1,0,M,M); % precompute diag(P)
-    W = (dP*G + lambda*sigma2*eye(M)) \ (PX-dP*Y);
-    
-    % update Y positions
+    dP = spdiags(P1,0,M,M); % precompute diag(P)  
+
+    tic
+% %     ------Direct Solver-------
+%     W = (dP*G + lambda*sigma2*eye(M))\(PX-dP*double(Y));
+% %     --------------------------
+
+% %     ------CULA float Solver-------
+%    W = single(PX-dP*Y);  
+%    solve_LSE_CULA_float(single(dP*G + lambda*sigma2*eye(M)), W);
+%    W = double(W);
+% %     --------------------------
+
+% %     ------CULA iterative Solver + Direct-------  
+    if sigma2 > 1e-4,
+        matrix_A = dP*G + lambda*sigma2*eye(M);
+        matrix_B = PX-dP*double(Y);
+        solve_LSE_CULA_iterative(matrix_A, matrix_B, W);
+    else
+        W = (dP*G + lambda*sigma2*eye(M))\(PX-dP*double(Y));
+    end
+% %     ------------------------------------------
+
+    disp('LSE time: ')
+    toc
+
+%     update Y positions  
     T = Y + G*W;
 
     Np=sum(P1);
@@ -99,10 +138,10 @@ tic
 
     % Plot the result on current iteration
     iter=iter+1;
-toc
+
 end
 
 disp('CPD registration succesfully completed.');
-
 %Find the correspondence, such that Y corresponds to X(C,:)
 C = cpd_Pcorrespondence(X,T,sigma2save,outliers); 
+
