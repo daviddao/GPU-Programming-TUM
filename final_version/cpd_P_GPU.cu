@@ -14,9 +14,6 @@
 #include "time.h"
 #include <cstdlib>
 #include <iostream>
-//using std::string;
-//using std::cout;
-//using std::endl;
 
 #define IDX2C(i,j,ld) (((j)*(ld))+(i)) //modify index for 0-based indexing
 
@@ -156,11 +153,6 @@ void cpd_comp(
   
   fillvector(filler,N,0);
   
- /* printf ("ksig = %lf\n", *sigma2);*/
-  /* outlier_tmp=*outlier*N/(1- *outlier)/M*(-ksig*3.14159265358979); */
-  
-  
-  
   // CUBLAS Stuff 
   cublasStatus_t stat;
   cublasHandle_t handle;
@@ -180,10 +172,7 @@ void cpd_comp(
   
   double* d_denom; //stores a denominator vector
   double* d_X_tmp; //stores a sliced X * denom version of X
-  
-  
-  //TODO: Finish Matrix Vector Multiplication
- 
+   
   // Allocate memory on the device
   cudaMalloc (&d_X, N*D*sizeof(double));
   cudaMalloc (&d_Y, M*D*sizeof(double));
@@ -206,7 +195,6 @@ void cpd_comp(
   // Create CUBLAS Context
   stat = cublasCreate(&handle);
   
-  // TODO: Load data in the beginning instead of every time!
   cudaMemcpy(d_X,  x, N*D* sizeof(double), cudaMemcpyHostToDevice);  
   cudaMemcpy(d_Y,  y, M*D* sizeof(double), cudaMemcpyHostToDevice);  
   cudaMemcpy(d_ones,  ones, M*sizeof(double), cudaMemcpyHostToDevice);  
@@ -289,7 +277,7 @@ void cpd_comp(
   
   cudaMemcpy(P1, d_P1, N* sizeof(double), cudaMemcpyDeviceToHost);  
 
-  // Free Device Space, so MATLAB doesnt crash
+  // Free Device Space
   cudaFree(d_X);
   cudaFree(d_Y);
   cudaFree(d_PSlice);

@@ -7,7 +7,7 @@ magicCUDA('cpd_P_GPU_float')
 
 k = 30;
 
-load('./tr_reg_079.mat');
+K = load('./tr_reg_079.mat');
 N = load('./tr_reg_084.mat');
 
 M.evecs = M.evecs(:,1:k);
@@ -19,7 +19,7 @@ N.evals = N.evals(1:k);
 
 load('C_icp.mat')
     
-[C_refined, cpd_MN, R] = run_cpd(M, N, C_icp, 50);
+[C_refined, cpd_MN, R] = run_cpd_float(M, N, C_icp, 50);
 cpd_MN = cpd_MN';
 
 % if everything is correct, this should print 28.20

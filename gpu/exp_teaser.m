@@ -5,10 +5,12 @@ clc
 
 %magicCUDA('test')
 
-k = 30;
+k = 100;
 
-load('./tr_reg_079.mat');
-N = load('./tr_reg_084.mat');
+M = load('./M_15000.mat');
+M = M.M2;
+N = load('./N_15000.mat');
+N = N.M1;
 
 M.evecs = M.evecs(:,1:k);
 M.evals = M.evals(1:k);
@@ -17,7 +19,7 @@ N = N.M;
 N.evecs = N.evecs(:,1:k);
 N.evals = N.evals(1:k);
 
-load('C_icp.mat')
+load('C_centaur.mat')
 
 [C_refined, cpd_MN, R] = run_cpd(M, N, C_icp, 50);
 cpd_MN = cpd_MN';
