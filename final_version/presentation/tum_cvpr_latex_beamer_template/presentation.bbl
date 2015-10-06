@@ -1,0 +1,14 @@
+\begin{thebibliography}{}
+
+\bibitem[E.~Rodola, 2015]{map_recovery}
+E.~Rodola, M.~Moeller, D.~C. (2015).
+\newblock Point-wise map recovery and refinement from functional
+  correspondence.
+
+\bibitem[Myronenko and Song, 2010]{myronenko2010point}
+Myronenko, A. and Song, X. (2010).
+\newblock Point set registration: Coherent point drift.
+\newblock {\em Pattern Analysis and Machine Intelligence, IEEE Transactions
+  on}, 32(12):2262--2275.
+
+\end{thebibliography}

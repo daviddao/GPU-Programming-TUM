@@ -1,0 +1,48 @@
+This is BibTeX, Version 0.99d (TeX Live 2013/Debian)
+Capacity: max_strings=35307, hash_size=35307, hash_prime=30011
+The top-level auxiliary file: presentation.aux
+The style file: apalike.bst
+Database file #1: bibliography.bib
+Warning--empty note in map_recovery
+You've used 2 entries,
+            1935 wiz_defined-function locations,
+            486 strings with 3998 characters,
+and the built_in function-call counts, 676 in all, are:
+= -- 67
+> -- 20
+< -- 2
++ -- 6
+- -- 6
+* -- 57
+:= -- 126
+add.period$ -- 5
+call.type$ -- 2
+change.case$ -- 13
+chr.to.int$ -- 2
+cite$ -- 3
+duplicate$ -- 23
+empty$ -- 47
+format.name$ -- 10
+if$ -- 125
+int.to.chr$ -- 1
+int.to.str$ -- 0
+missing$ -- 1
+newline$ -- 12
+num.names$ -- 6
+pop$ -- 7
+preamble$ -- 1
+purify$ -- 13
+quote$ -- 0
+skip$ -- 21
+stack$ -- 0
+substring$ -- 55
+swap$ -- 1
+text.length$ -- 0
+text.prefix$ -- 0
+top$ -- 0
+type$ -- 12
+warning$ -- 1
+while$ -- 6
+width$ -- 0
+write$ -- 25
+(There was 1 warning)

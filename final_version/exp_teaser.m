@@ -5,6 +5,10 @@ clc
 
 k = 30;
 
+%magicCUDA('cpd_P_GPU');
+%magicCUDA('solve_LSE_CULA_float');
+
+
 load('./tr_reg_079.mat');
 N = load('./tr_reg_084.mat');
 
